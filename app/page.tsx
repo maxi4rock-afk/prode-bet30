@@ -197,7 +197,7 @@ async function registrarse() {
             <input className="w-full p-3 rounded bg-white text-black" placeholder="usuario" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
 
             <button onClick={registrarse} className="w-full bg-yellow-500 text-black font-bold p-3 rounded">
-              Inscribirme
+              Ingresar
             </button>
 
             {mensaje && <p className="text-center text-green-400 font-bold">{mensaje}</p>}
