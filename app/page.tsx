@@ -145,9 +145,39 @@ async function registrarse() {
   setMensaje("✅ Inscripción realizada. Ya podés cargar tus pronósticos.");
 }
 
-  function guardarPronostico(id: string): void {
-    throw new Error("Function not implemented.");
+  async function guardarPronostico(matchId: string) {
+  if (!playerId) {
+    setMensaje("Primero ingresá con tu usuario BET30.");
+    return;
   }
+
+  const pred = predictions[matchId];
+
+  if (!pred || pred.home === "" || pred.away === "") {
+    setMensaje("Completá los goles del partido.");
+    return;
+  }
+
+  const { error } = await supabase.from("predictions").upsert(
+    {
+      player_id: playerId,
+      match_id: matchId,
+      predicted_home_goals: Number(pred.home),
+      predicted_away_goals: Number(pred.away),
+    },
+    {
+      onConflict: "player_id,match_id",
+    }
+  );
+
+  if (error) {
+    console.log(error);
+    setMensaje("Error al guardar pronóstico.");
+    return;
+  }
+
+  setMensaje("✅ Pronóstico guardado/actualizado correctamente.");
+}
 
   return (
     <main className="min-h-screen bg-black text-white p-6">
