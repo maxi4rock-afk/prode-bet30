@@ -26,7 +26,6 @@ type PredictionInput = {
 };
 
 export default function Home() {
-  const [nombre, setNombre] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [usuario, setUsuario] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -40,11 +39,15 @@ export default function Home() {
     cargarRanking();
 
     const savedPlayerId = localStorage.getItem("playerId");
-    const savedNombre = localStorage.getItem("nombre");
+    const savedWhatsapp = localStorage.getItem("whatsapp");
     const savedUsuario = localStorage.getItem("usuario");
 
-    if (savedPlayerId) setPlayerId(savedPlayerId);
-    if (savedNombre) setNombre(savedNombre);
+    if (savedPlayerId) {
+      setPlayerId(savedPlayerId);
+      cargarPronosticos(savedPlayerId);
+    }
+
+    if (savedWhatsapp) setWhatsapp(savedWhatsapp);
     if (savedUsuario) setUsuario(savedUsuario);
   }, []);
 
@@ -81,103 +84,128 @@ export default function Home() {
       return;
     }
 
-  const formattedScores: Score[] = (data || []).map((item: any) => ({
-  id: item.id,
-  points: item.points,
-  players: Array.isArray(item.players) ? item.players[0] : item.players,
+    const formattedScores: Score[] = (data || []).map((item: any) => ({
+      id: item.id,
+      points: item.points,
+      players: Array.isArray(item.players) ? item.players[0] : item.players,
     }));
 
-setScores(formattedScores);
-}
-
-async function registrarse() {
-  setMensaje("");
-
-  if (!whatsapp || !usuario) {
-    setMensaje("Completá usuario BET30 y WhatsApp.");
-    return;
+    setScores(formattedScores);
   }
 
-  const { data: existingPlayer, error: searchError } = await supabase
-    .from("players")
-    .select("id, casino_user, whatsapp")
-    .eq("casino_user", usuario)
-    .maybeSingle();
+  async function cargarPronosticos(idJugador: string) {
+    const { data, error } = await supabase
+      .from("predictions")
+      .select("match_id, predicted_home_goals, predicted_away_goals")
+      .eq("player_id", idJugador);
 
-  if (searchError) {
-    console.log(searchError);
-    setMensaje("Error al buscar usuario.");
-    return;
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    const loaded: Record<string, PredictionInput> = {};
+
+    (data || []).forEach((pred) => {
+      loaded[pred.match_id] = {
+        home: String(pred.predicted_home_goals),
+        away: String(pred.predicted_away_goals),
+      };
+    });
+
+    setPredictions(loaded);
   }
 
-  if (existingPlayer) {
-    setPlayerId(existingPlayer.id);
-    localStorage.setItem("playerId", existingPlayer.id);
-    localStorage.setItem("usuario", existingPlayer.casino_user);
-    localStorage.setItem("whatsapp", existingPlayer.whatsapp || "");
+  async function registrarse() {
+    setMensaje("");
 
-    setMensaje("✅ Bienvenido nuevamente. Podés seguir cargando tus pronósticos.");
-    return;
+    if (!whatsapp || !usuario) {
+      setMensaje("Completá usuario BET30 y WhatsApp.");
+      return;
+    }
+
+    const { data: existingPlayer, error: searchError } = await supabase
+      .from("players")
+      .select("id, casino_user, whatsapp")
+      .eq("casino_user", usuario)
+      .maybeSingle();
+
+    if (searchError) {
+      console.log(searchError);
+      setMensaje("Error al buscar usuario.");
+      return;
+    }
+
+    if (existingPlayer) {
+      setPlayerId(existingPlayer.id);
+      localStorage.setItem("playerId", existingPlayer.id);
+      localStorage.setItem("usuario", existingPlayer.casino_user);
+      localStorage.setItem("whatsapp", existingPlayer.whatsapp || "");
+
+      await cargarPronosticos(existingPlayer.id);
+
+      setMensaje("✅ Bienvenido nuevamente. Tus pronósticos anteriores fueron cargados.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("players")
+      .insert({
+        full_name: usuario,
+        whatsapp,
+        casino_user: usuario,
+        paid: true,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.log(error);
+      setMensaje("Error al registrar. Revisá Supabase.");
+      return;
+    }
+
+    setPlayerId(data.id);
+    localStorage.setItem("playerId", data.id);
+    localStorage.setItem("usuario", usuario);
+    localStorage.setItem("whatsapp", whatsapp);
+
+    setMensaje("✅ Inscripción realizada. Ya podés cargar tus pronósticos.");
   }
-
-  const { data, error } = await supabase
-    .from("players")
-    .insert({
-      full_name: usuario,
-      whatsapp,
-      casino_user: usuario,
-      paid: true,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.log(error);
-    setMensaje("Error al registrar. Revisá Supabase.");
-    return;
-  }
-
-  setPlayerId(data.id);
-  localStorage.setItem("playerId", data.id);
-  localStorage.setItem("usuario", usuario);
-  localStorage.setItem("whatsapp", whatsapp);
-
-  setMensaje("✅ Inscripción realizada. Ya podés cargar tus pronósticos.");
-}
 
   async function guardarPronostico(matchId: string) {
-  if (!playerId) {
-    setMensaje("Primero ingresá con tu usuario BET30.");
-    return;
-  }
-
-  const pred = predictions[matchId];
-
-  if (!pred || pred.home === "" || pred.away === "") {
-    setMensaje("Completá los goles del partido.");
-    return;
-  }
-
-  const { error } = await supabase.from("predictions").upsert(
-    {
-      player_id: playerId,
-      match_id: matchId,
-      predicted_home_goals: Number(pred.home),
-      predicted_away_goals: Number(pred.away),
-    },
-    {
-      onConflict: "player_id,match_id",
+    if (!playerId) {
+      setMensaje("Primero ingresá con tu usuario BET30.");
+      return;
     }
-  );
 
-  if (error) {
-    console.log(error);
-    setMensaje("Error al guardar pronóstico.");
-    return;
+    const pred = predictions[matchId];
+
+    if (!pred || pred.home === "" || pred.away === "") {
+      setMensaje("Completá los goles del partido.");
+      return;
+    }
+
+    const { error } = await supabase.from("predictions").upsert(
+      {
+        player_id: playerId,
+        match_id: matchId,
+        predicted_home_goals: Number(pred.home),
+        predicted_away_goals: Number(pred.away),
+      },
+      {
+        onConflict: "player_id,match_id",
+      }
+    );
+
+    if (error) {
+      console.log(error);
+      setMensaje("Error al guardar pronóstico.");
+      return;
+    }
+
+    setMensaje("✅ Pronóstico guardado/actualizado correctamente.");
   }
-
-  setMensaje("✅ Pronóstico guardado/actualizado correctamente.");
-}
 
   return (
     <main className="min-h-screen bg-black text-white p-6">
@@ -193,14 +221,30 @@ async function registrarse() {
           <div className="bg-zinc-900 p-6 rounded-2xl space-y-4">
             <h2 className="text-2xl font-bold">Ingresar al Prode</h2>
 
-            <input className="w-full p-3 rounded bg-white text-black" placeholder="Número de WhatsApp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
-            <input className="w-full p-3 rounded bg-white text-black" placeholder="usuario" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
+            <input
+              className="w-full p-3 rounded bg-white text-black"
+              placeholder="Número de WhatsApp"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+            />
 
-            <button onClick={registrarse} className="w-full bg-yellow-500 text-black font-bold p-3 rounded">
+            <input
+              className="w-full p-3 rounded bg-white text-black"
+              placeholder="Usuario BET30"
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+            />
+
+            <button
+              onClick={registrarse}
+              className="w-full bg-yellow-500 text-black font-bold p-3 rounded"
+            >
               Ingresar
             </button>
 
-            {mensaje && <p className="text-center text-green-400 font-bold">{mensaje}</p>}
+            {mensaje && (
+              <p className="text-center text-green-400 font-bold">{mensaje}</p>
+            )}
           </div>
 
           <div className="bg-zinc-900 p-6 rounded-2xl">
@@ -227,7 +271,10 @@ async function registrarse() {
 
           <div className="space-y-3">
             {scores.map((score, index) => (
-              <div key={score.id} className="bg-zinc-800 p-4 rounded-xl flex justify-between">
+              <div
+                key={score.id}
+                className="bg-zinc-800 p-4 rounded-xl flex justify-between"
+              >
                 <div>
                   <p className="font-bold">
                     #{index + 1} {score.players?.full_name}
@@ -236,7 +283,9 @@ async function registrarse() {
                     {score.players?.casino_user}
                   </p>
                 </div>
-                <p className="text-yellow-400 font-bold">{score.points} pts</p>
+                <p className="text-yellow-400 font-bold">
+                  {score.points} pts
+                </p>
               </div>
             ))}
           </div>
@@ -245,14 +294,21 @@ async function registrarse() {
         <div className="mt-8 bg-zinc-900 p-6 rounded-2xl">
           <h2 className="text-2xl font-bold mb-4">Fixture y pronósticos</h2>
 
-          {matches.length === 0 && <p className="text-gray-400">No hay partidos cargados.</p>}
+          {matches.length === 0 && (
+            <p className="text-gray-400">No hay partidos cargados.</p>
+          )}
 
           <div className="space-y-4">
             {matches.map((match) => (
-              <div key={match.id} className="bg-zinc-800 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center">
+              <div
+                key={match.id}
+                className="bg-zinc-800 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
+              >
                 <div className="md:col-span-2">
                   <p className="text-sm text-gray-400">{match.phase}</p>
-                  <p className="font-bold">{match.home_team} vs {match.away_team}</p>
+                  <p className="font-bold">
+                    {match.home_team} vs {match.away_team}
+                  </p>
                 </div>
 
                 <input
@@ -287,7 +343,10 @@ async function registrarse() {
                   }
                 />
 
-                <button onClick={() => guardarPronostico(match.id)} className="bg-yellow-500 text-black font-bold p-3 rounded">
+                <button
+                  onClick={() => guardarPronostico(match.id)}
+                  className="bg-yellow-500 text-black font-bold p-3 rounded"
+                >
                   Guardar
                 </button>
               </div>
