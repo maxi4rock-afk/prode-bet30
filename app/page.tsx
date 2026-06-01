@@ -193,9 +193,8 @@ async function registrarse() {
           <div className="bg-zinc-900 p-6 rounded-2xl space-y-4">
             <h2 className="text-2xl font-bold">Ingresar al Prode</h2>
 
-            <input className="w-full p-3 rounded bg-white text-black" placeholder="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-            <input className="w-full p-3 rounded bg-white text-black" placeholder="WhatsApp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
-            <input className="w-full p-3 rounded bg-white text-black" placeholder="Usuario BET30" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
+            <input className="w-full p-3 rounded bg-white text-black" placeholder="Número de WhatsApp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+            <input className="w-full p-3 rounded bg-white text-black" placeholder="usuario" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
 
             <button onClick={registrarse} className="w-full bg-yellow-500 text-black font-bold p-3 rounded">
               Inscribirme
