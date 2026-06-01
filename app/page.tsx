@@ -81,8 +81,13 @@ export default function Home() {
       return;
     }
 
-    setScores((data as Score[]) ?? []);
-  }
+const formattedScores: Score[] = (data || []).map((item: any) => ({
+  id: item.id,
+  points: item.points,
+  players: Array.isArray(item.players) ? item.players[0] : item.players,
+}));
+
+setScores(formattedScores);
 
   async function registrarse() {
     setMensaje("");
