@@ -65,7 +65,7 @@ export default function Home() {
 
   async function cargarRanking() {
     const { data, error } = await supabase
-      .from("scores")
+      .from("score")
       .select(`
         id,
         points,
@@ -91,70 +91,62 @@ setScores(formattedScores);
 }
 
 async function registrarse() {
-    setMensaje("");
+  setMensaje("");
 
-    if (!nombre || !whatsapp || !usuario) {
-      setMensaje("Completá todos los campos.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("players")
-      .insert({
-        full_name: nombre,
-        whatsapp,
-        casino_user: usuario,
-        paid: true,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.log(error);
-      setMensaje("Error al registrar. Revisá Supabase.");
-      return;
-    }
-
-    setPlayerId(data.id);
-    localStorage.setItem("playerId", data.id);
-    localStorage.setItem("nombre", nombre);
-    localStorage.setItem("usuario", usuario);
-
-    setMensaje("✅ Inscripción realizada. Ya podés cargar tus pronósticos.");
+  if (!whatsapp || !usuario) {
+    setMensaje("Completá usuario BET30 y WhatsApp.");
+    return;
   }
 
-  async function guardarPronostico(matchId: string) {
-    if (!playerId) {
-      setMensaje("Primero tenés que inscribirte.");
-      return;
-    }
+  const { data: existingPlayer, error: searchError } = await supabase
+    .from("players")
+    .select("id, casino_user, whatsapp")
+    .eq("casino_user", usuario)
+    .maybeSingle();
 
-    const pred = predictions[matchId];
+  if (searchError) {
+    console.log(searchError);
+    setMensaje("Error al buscar usuario.");
+    return;
+  }
 
-    if (!pred || pred.home === "" || pred.away === "") {
-      setMensaje("Completá los goles del partido.");
-      return;
-    }
+  if (existingPlayer) {
+    setPlayerId(existingPlayer.id);
+    localStorage.setItem("playerId", existingPlayer.id);
+    localStorage.setItem("usuario", existingPlayer.casino_user);
+    localStorage.setItem("whatsapp", existingPlayer.whatsapp || "");
 
-    const { error } = await supabase.from("predictions").upsert(
-      {
-        player_id: playerId,
-        match_id: matchId,
-        predicted_home_goals: Number(pred.home),
-        predicted_away_goals: Number(pred.away),
-      },
-      {
-        onConflict: "player_id,match_id",
-      }
-    );
+    setMensaje("✅ Bienvenido nuevamente. Podés seguir cargando tus pronósticos.");
+    return;
+  }
 
-    if (error) {
-      console.log(error);
-      setMensaje("Error al guardar pronóstico.");
-      return;
-    }
+  const { data, error } = await supabase
+    .from("players")
+    .insert({
+      full_name: usuario,
+      whatsapp,
+      casino_user: usuario,
+      paid: true,
+    })
+    .select("id")
+    .single();
 
-    setMensaje("✅ Pronóstico guardado/actualizado correctamente.");
+  if (error) {
+    console.log(error);
+    setMensaje("Error al registrar. Revisá Supabase.");
+    return;
+  }
+
+  setPlayerId(data.id);
+  localStorage.setItem("playerId", data.id);
+  localStorage.setItem("usuario", usuario);
+  localStorage.setItem("whatsapp", whatsapp);
+
+  setMensaje("✅ Inscripción realizada. Ya podés cargar tus pronósticos.");
+}
+
+  function guardarPronostico(id: string): void {
+    throw new Error("Function not implemented.");
   }
 
   return (
@@ -169,7 +161,7 @@ async function registrarse() {
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-zinc-900 p-6 rounded-2xl space-y-4">
-            <h2 className="text-2xl font-bold">Inscripción</h2>
+            <h2 className="text-2xl font-bold">Ingresar al Prode</h2>
 
             <input className="w-full p-3 rounded bg-white text-black" placeholder="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} />
             <input className="w-full p-3 rounded bg-white text-black" placeholder="WhatsApp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
