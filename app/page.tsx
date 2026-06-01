@@ -45,6 +45,7 @@ export default function Home() {
     if (savedPlayerId) {
       setPlayerId(savedPlayerId);
       cargarPronosticos(savedPlayerId);
+      setMensaje("✅ Sesión recuperada.");
     }
 
     if (savedWhatsapp) setWhatsapp(savedWhatsapp);
@@ -179,6 +180,14 @@ export default function Home() {
       return;
     }
 
+    const match = matches.find((m) => m.id === matchId);
+    const bloqueado = match ? new Date(match.match_date).getTime() < Date.now() : false;
+
+    if (bloqueado) {
+      setMensaje("🔒 Este partido ya está cerrado.");
+      return;
+    }
+
     const pred = predictions[matchId];
 
     if (!pred || pred.home === "" || pred.away === "") {
@@ -207,6 +216,15 @@ export default function Home() {
     setMensaje("✅ Pronóstico guardado/actualizado correctamente.");
   }
 
+  function cerrarSesion() {
+    localStorage.clear();
+    setPlayerId(null);
+    setWhatsapp("");
+    setUsuario("");
+    setPredictions({});
+    setMensaje("Sesión cerrada.");
+  }
+
   return (
     <main className="min-h-screen bg-black text-white p-6">
       <section className="max-w-5xl mx-auto">
@@ -221,26 +239,43 @@ export default function Home() {
           <div className="bg-zinc-900 p-6 rounded-2xl space-y-4">
             <h2 className="text-2xl font-bold">Ingresar al Prode</h2>
 
-            <input
-              className="w-full p-3 rounded bg-white text-black"
-              placeholder="Número de WhatsApp"
-              value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
-            />
+            {!playerId ? (
+              <>
+                <input
+                  className="w-full p-3 rounded bg-white text-black"
+                  placeholder="Número de WhatsApp"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                />
 
-            <input
-              className="w-full p-3 rounded bg-white text-black"
-              placeholder="Usuario BET30"
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
-            />
+                <input
+                  className="w-full p-3 rounded bg-white text-black"
+                  placeholder="Usuario BET30"
+                  value={usuario}
+                  onChange={(e) => setUsuario(e.target.value)}
+                />
 
-            <button
-              onClick={registrarse}
-              className="w-full bg-yellow-500 text-black font-bold p-3 rounded"
-            >
-              Ingresar
-            </button>
+                <button
+                  onClick={registrarse}
+                  className="w-full bg-yellow-500 text-black font-bold p-3 rounded"
+                >
+                  Ingresar
+                </button>
+              </>
+            ) : (
+              <div className="text-center">
+                <p className="text-green-400 font-bold">
+                  ✅ Conectado como {usuario}
+                </p>
+
+                <button
+                  onClick={cerrarSesion}
+                  className="mt-4 w-full bg-red-500 text-white font-bold p-3 rounded"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
 
             {mensaje && (
               <p className="text-center text-green-400 font-bold">{mensaje}</p>
@@ -299,58 +334,75 @@ export default function Home() {
           )}
 
           <div className="space-y-4">
-            {matches.map((match) => (
-              <div
-                key={match.id}
-                className="bg-zinc-800 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
-              >
-                <div className="md:col-span-2">
-                  <p className="text-sm text-gray-400">{match.phase}</p>
-                  <p className="font-bold">
-                    {match.home_team} vs {match.away_team}
-                  </p>
-                </div>
+            {matches.map((match) => {
+              const bloqueado =
+                new Date(match.match_date).getTime() < Date.now();
 
-                <input
-                  className="p-3 rounded bg-white text-black text-center"
-                  type="number"
-                  placeholder={match.home_team}
-                  value={predictions[match.id]?.home ?? ""}
-                  onChange={(e) =>
-                    setPredictions((prev) => ({
-                      ...prev,
-                      [match.id]: {
-                        home: e.target.value,
-                        away: prev[match.id]?.away ?? "",
-                      },
-                    }))
-                  }
-                />
-
-                <input
-                  className="p-3 rounded bg-white text-black text-center"
-                  type="number"
-                  placeholder={match.away_team}
-                  value={predictions[match.id]?.away ?? ""}
-                  onChange={(e) =>
-                    setPredictions((prev) => ({
-                      ...prev,
-                      [match.id]: {
-                        home: prev[match.id]?.home ?? "",
-                        away: e.target.value,
-                      },
-                    }))
-                  }
-                />
-
-                <button
-                  onClick={() => guardarPronostico(match.id)}
-                  className="bg-yellow-500 text-black font-bold p-3 rounded"
+              return (
+                <div
+                  key={match.id}
+                  className="bg-zinc-800 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
                 >
-                  Guardar
-                </button>
-              </div>
-            ))}
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-gray-400">{match.phase}</p>
+                    <p className="font-bold">
+                      {match.home_team} vs {match.away_team}
+                    </p>
+                    {bloqueado && (
+                      <p className="text-red-400 text-sm mt-1">
+                        🔒 Pronóstico cerrado
+                      </p>
+                    )}
+                  </div>
+
+                  <input
+                    disabled={bloqueado}
+                    className="p-3 rounded bg-white text-black text-center disabled:bg-gray-400"
+                    type="number"
+                    placeholder={match.home_team}
+                    value={predictions[match.id]?.home ?? ""}
+                    onChange={(e) =>
+                      setPredictions((prev) => ({
+                        ...prev,
+                        [match.id]: {
+                          home: e.target.value,
+                          away: prev[match.id]?.away ?? "",
+                        },
+                      }))
+                    }
+                  />
+
+                  <input
+                    disabled={bloqueado}
+                    className="p-3 rounded bg-white text-black text-center disabled:bg-gray-400"
+                    type="number"
+                    placeholder={match.away_team}
+                    value={predictions[match.id]?.away ?? ""}
+                    onChange={(e) =>
+                      setPredictions((prev) => ({
+                        ...prev,
+                        [match.id]: {
+                          home: prev[match.id]?.home ?? "",
+                          away: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+
+                  <button
+                    disabled={bloqueado}
+                    onClick={() => guardarPronostico(match.id)}
+                    className={`font-bold p-3 rounded ${
+                      bloqueado
+                        ? "bg-gray-600 text-white cursor-not-allowed"
+                        : "bg-yellow-500 text-black"
+                    }`}
+                  >
+                    {bloqueado ? "🔒 Cerrado" : "Guardar"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
