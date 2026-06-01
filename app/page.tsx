@@ -275,4 +275,4 @@ setScores(formattedScores);
       </section>
     </main>
   );
-};
+}
