@@ -88,8 +88,9 @@ export default function Home() {
     }));
 
 setScores(formattedScores);
+}
 
-  async function registrarse() {
+async function registrarse() {
     setMensaje("");
 
     if (!nombre || !whatsapp || !usuario) {
