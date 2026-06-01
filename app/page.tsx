@@ -81,11 +81,11 @@ export default function Home() {
       return;
     }
 
-const formattedScores: Score[] = (data || []).map((item: any) => ({
+  const formattedScores: Score[] = (data || []).map((item: any) => ({
   id: item.id,
   points: item.points,
   players: Array.isArray(item.players) ? item.players[0] : item.players,
-}));
+    }));
 
 setScores(formattedScores);
 
@@ -275,4 +275,4 @@ setScores(formattedScores);
       </section>
     </main>
   );
-}
+};
