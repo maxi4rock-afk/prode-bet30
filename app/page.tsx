@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 
 type Match = {
@@ -26,6 +26,61 @@ type PredictionInput = {
   away: string;
 };
 
+const FLAGS: Record<string, string> = {
+  "México": "🇲🇽",
+  "Sudáfrica": "🇿🇦",
+  "Corea del Sur": "🇰🇷",
+  "República Checa": "🇨🇿",
+  "Canadá": "🇨🇦",
+  "Bosnia": "🇧🇦",
+  "Estados Unidos": "🇺🇸",
+  "Paraguay": "🇵🇾",
+  "Qatar": "🇶🇦",
+  "Suiza": "🇨🇭",
+  "Brasil": "🇧🇷",
+  "Marruecos": "🇲🇦",
+  "Haití": "🇭🇹",
+  "Escocia": "🏴",
+  "Australia": "🇦🇺",
+  "Turquía": "🇹🇷",
+  "Alemania": "🇩🇪",
+  "Curazao": "🇨🇼",
+  "Países Bajos": "🇳🇱",
+  "Japón": "🇯🇵",
+  "Costa de Marfil": "🇨🇮",
+  "Ecuador": "🇪🇨",
+  "Suecia": "🇸🇪",
+  "Túnez": "🇹🇳",
+  "España": "🇪🇸",
+  "Cabo Verde": "🇨🇻",
+  "Bélgica": "🇧🇪",
+  "Egipto": "🇪🇬",
+  "Arabia Saudita": "🇸🇦",
+  "Uruguay": "🇺🇾",
+  "Irán": "🇮🇷",
+  "Nueva Zelanda": "🇳🇿",
+  "Francia": "🇫🇷",
+  "Senegal": "🇸🇳",
+  "Irak": "🇮🇶",
+  "Noruega": "🇳🇴",
+  "Argentina": "🇦🇷",
+  "Argelia": "🇩🇿",
+  "Austria": "🇦🇹",
+  "Jordania": "🇯🇴",
+  "Portugal": "🇵🇹",
+  "RD Congo": "🇨🇩",
+  "Inglaterra": "🏴",
+  "Croacia": "🇭🇷",
+  "Ghana": "🇬🇭",
+  "Panamá": "🇵🇦",
+  "Uzbekistán": "🇺🇿",
+  "Colombia": "🇨🇴",
+};
+
+function equipoConBandera(equipo: string) {
+  return `${FLAGS[equipo] ?? "🏳️"} ${equipo}`;
+}
+
 export default function Home() {
   const [usuario, setUsuario] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -34,6 +89,7 @@ export default function Home() {
   const [predictions, setPredictions] = useState<Record<string, PredictionInput>>({});
   const [scores, setScores] = useState<Score[]>([]);
   const [rankingAbierto, setRankingAbierto] = useState(false);
+  const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     cargarPartidos();
@@ -50,6 +106,24 @@ export default function Home() {
 
     if (savedUsuario) setUsuario(savedUsuario);
   }, []);
+
+  const partidosPorGrupo = useMemo(() => {
+    const grupos: Record<string, Match[]> = {};
+
+    matches.forEach((match) => {
+      if (!grupos[match.phase]) grupos[match.phase] = [];
+      grupos[match.phase].push(match);
+    });
+
+    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b));
+  }, [matches]);
+
+  function toggleGrupo(grupo: string) {
+    setGruposAbiertos((prev) => ({
+      ...prev,
+      [grupo]: !(prev[grupo] ?? true),
+    }));
+  }
 
   function normalizarUsuario(valor: string) {
     return String(valor || "").toLowerCase().trim().replace(/\s+/g, "");
@@ -78,7 +152,13 @@ export default function Home() {
   }
 
   function partidoBloqueado(match: Match) {
-    return !!match.locked;
+    if (match.locked) return true;
+    if (!match.match_date) return false;
+
+    const fechaPartido = new Date(match.match_date);
+    if (isNaN(fechaPartido.getTime())) return false;
+
+    return fechaPartido.getTime() <= Date.now();
   }
 
   async function cargarPartidos() {
@@ -404,9 +484,7 @@ export default function Home() {
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-black text-orange-400">
-                🏆 Top Prode
-              </h2>
+              <h2 className="text-xl font-black text-orange-400">🏆 Top Prode</h2>
 
               <button
                 onClick={() => setRankingAbierto(true)}
@@ -438,18 +516,14 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <p className="text-[#ffcc00] font-black">
-                    {score.points} pts
-                  </p>
+                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="bg-[#111118] border border-[#e8357a] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(232,53,122,0.18)]">
-            <h2 className="text-xl font-black mb-4 text-[#e8357a]">
-              🎁 Premios
-            </h2>
+            <h2 className="text-xl font-black mb-4 text-[#e8357a]">🎁 Premios</h2>
 
             <div className="space-y-3 text-base md:text-lg">
               <p>
@@ -493,82 +567,116 @@ export default function Home() {
             <p className="text-gray-400">No hay partidos cargados.</p>
           )}
 
-          <div className="space-y-4">
-            {matches.map((match) => {
-              const bloqueado = partidoBloqueado(match);
+          <div className="space-y-5">
+            {partidosPorGrupo.map(([grupo, partidos]) => {
+              const abierto = gruposAbiertos[grupo] ?? true;
 
               return (
                 <div
-                  key={match.id}
-                  className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
+                  key={grupo}
+                  className="border border-zinc-700 rounded-2xl overflow-hidden bg-[#0f0f16]"
                 >
-                  <div className="md:col-span-2">
-                    <p className="text-xs text-orange-300 uppercase font-bold">
-                      {match.phase}
-                    </p>
-
-                    <p className="font-black">
-                      {match.home_team} vs {match.away_team}
-                    </p>
-
-                    <p className="text-[#ffcc00] text-sm font-bold mt-1">
-                      🕒 {formatearFecha(match.match_date)}
-                    </p>
-
-                    {bloqueado && (
-                      <p className="text-red-400 text-sm mt-1">
-                        🔒 Pronóstico cerrado
-                      </p>
-                    )}
-                  </div>
-
-                  <input
-                    disabled={bloqueado}
-                    className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
-                    type="number"
-                    min="0"
-                    placeholder="Local"
-                    value={predictions[match.id]?.home ?? ""}
-                    onChange={(e) =>
-                      setPredictions((prev) => ({
-                        ...prev,
-                        [match.id]: {
-                          home: e.target.value,
-                          away: prev[match.id]?.away ?? "",
-                        },
-                      }))
-                    }
-                  />
-
-                  <input
-                    disabled={bloqueado}
-                    className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
-                    type="number"
-                    min="0"
-                    placeholder="Visitante"
-                    value={predictions[match.id]?.away ?? ""}
-                    onChange={(e) =>
-                      setPredictions((prev) => ({
-                        ...prev,
-                        [match.id]: {
-                          home: prev[match.id]?.home ?? "",
-                          away: e.target.value,
-                        },
-                      }))
-                    }
-                  />
-
                   <button
-                    disabled={bloqueado}
-                    onClick={() => guardarPronostico(match.id)}
-                    className={`font-black p-3 rounded ${
-                      bloqueado
-                        ? "bg-gray-600 text-white cursor-not-allowed"
-                        : "bg-orange-500 text-black hover:bg-yellow-400"
-                    }`}
+                    onClick={() => toggleGrupo(grupo)}
+                    className="w-full flex items-center justify-between p-4 bg-[#1b1b25] hover:bg-[#242435] transition"
                   >
-                    {bloqueado ? "🔒 Cerrado" : "Guardar"}
+                    <div>
+                      <p className="text-orange-400 font-black text-lg">
+                        {abierto ? "▼" : "▶"} {grupo}
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        {partidos.length} partidos
+                      </p>
+                    </div>
+
+                    <span className="text-[#ffcc00] font-black">
+                      {abierto ? "Ocultar" : "Ver partidos"}
+                    </span>
                   </button>
+
+                  {abierto && (
+                    <div className="space-y-4 p-4">
+                      {partidos.map((match) => {
+                        const bloqueado = partidoBloqueado(match);
+
+                        return (
+                          <div
+                            key={match.id}
+                            className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
+                          >
+                            <div className="md:col-span-2">
+                              <p className="text-xs text-orange-300 uppercase font-bold">
+                                {match.phase}
+                              </p>
+
+                              <p className="font-black">
+                                {equipoConBandera(match.home_team)} vs{" "}
+                                {equipoConBandera(match.away_team)}
+                              </p>
+
+                              <p className="text-[#ffcc00] text-sm font-bold mt-1">
+                                🕒 {formatearFecha(match.match_date)}
+                              </p>
+
+                              {bloqueado && (
+                                <p className="text-red-400 text-sm mt-1">
+                                  🔒 Pronóstico cerrado
+                                </p>
+                              )}
+                            </div>
+
+                            <input
+                              disabled={bloqueado}
+                              className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
+                              type="number"
+                              min="0"
+                              placeholder="Local"
+                              value={predictions[match.id]?.home ?? ""}
+                              onChange={(e) =>
+                                setPredictions((prev) => ({
+                                  ...prev,
+                                  [match.id]: {
+                                    home: e.target.value,
+                                    away: prev[match.id]?.away ?? "",
+                                  },
+                                }))
+                              }
+                            />
+
+                            <input
+                              disabled={bloqueado}
+                              className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
+                              type="number"
+                              min="0"
+                              placeholder="Visitante"
+                              value={predictions[match.id]?.away ?? ""}
+                              onChange={(e) =>
+                                setPredictions((prev) => ({
+                                  ...prev,
+                                  [match.id]: {
+                                    home: prev[match.id]?.home ?? "",
+                                    away: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+
+                            <button
+                              disabled={bloqueado}
+                              onClick={() => guardarPronostico(match.id)}
+                              className={`font-black p-3 rounded ${
+                                bloqueado
+                                  ? "bg-gray-600 text-white cursor-not-allowed"
+                                  : "bg-orange-500 text-black hover:bg-yellow-400"
+                              }`}
+                            >
+                              {bloqueado ? "🔒 Cerrado" : "Guardar"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -607,9 +715,7 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <p className="text-[#ffcc00] font-black">
-                    {score.points} pts
-                  </p>
+                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
                 </div>
               ))}
             </div>
