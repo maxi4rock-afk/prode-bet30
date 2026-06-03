@@ -26,59 +26,74 @@ type PredictionInput = {
   away: string;
 };
 
-const FLAGS: Record<string, string> = {
-  "México": "🇲🇽",
-  "Sudáfrica": "🇿🇦",
-  "Corea del Sur": "🇰🇷",
-  "República Checa": "🇨🇿",
-  "Canadá": "🇨🇦",
-  "Bosnia": "🇧🇦",
-  "Estados Unidos": "🇺🇸",
-  "Paraguay": "🇵🇾",
-  "Qatar": "🇶🇦",
-  "Suiza": "🇨🇭",
-  "Brasil": "🇧🇷",
-  "Marruecos": "🇲🇦",
-  "Haití": "🇭🇹",
-  "Escocia": "🏴",
-  "Australia": "🇦🇺",
-  "Turquía": "🇹🇷",
-  "Alemania": "🇩🇪",
-  "Curazao": "🇨🇼",
-  "Países Bajos": "🇳🇱",
-  "Japón": "🇯🇵",
-  "Costa de Marfil": "🇨🇮",
-  "Ecuador": "🇪🇨",
-  "Suecia": "🇸🇪",
-  "Túnez": "🇹🇳",
-  "España": "🇪🇸",
-  "Cabo Verde": "🇨🇻",
-  "Bélgica": "🇧🇪",
-  "Egipto": "🇪🇬",
-  "Arabia Saudita": "🇸🇦",
-  "Uruguay": "🇺🇾",
-  "Irán": "🇮🇷",
-  "Nueva Zelanda": "🇳🇿",
-  "Francia": "🇫🇷",
-  "Senegal": "🇸🇳",
-  "Irak": "🇮🇶",
-  "Noruega": "🇳🇴",
-  "Argentina": "🇦🇷",
-  "Argelia": "🇩🇿",
-  "Austria": "🇦🇹",
-  "Jordania": "🇯🇴",
-  "Portugal": "🇵🇹",
-  "RD Congo": "🇨🇩",
-  "Inglaterra": "🏴",
-  "Croacia": "🇭🇷",
-  "Ghana": "🇬🇭",
-  "Panamá": "🇵🇦",
-  "Uzbekistán": "🇺🇿",
-  "Colombia": "🇨🇴",
+const FLAG_CODES: Record<string, string> = {
+  "México": "mx",
+  "Sudáfrica": "za",
+  "Corea del Sur": "kr",
+  "República Checa": "cz",
+  "Canadá": "ca",
+  "Bosnia": "ba",
+  "Estados Unidos": "us",
+  "Paraguay": "py",
+  "Qatar": "qa",
+  "Suiza": "ch",
+  "Brasil": "br",
+  "Marruecos": "ma",
+  "Haití": "ht",
+  "Escocia": "gb",
+  "Australia": "au",
+  "Turquía": "tr",
+  "Alemania": "de",
+  "Curazao": "cw",
+  "Países Bajos": "nl",
+  "Japón": "jp",
+  "Costa de Marfil": "ci",
+  "Ecuador": "ec",
+  "Suecia": "se",
+  "Túnez": "tn",
+  "España": "es",
+  "Cabo Verde": "cv",
+  "Bélgica": "be",
+  "Egipto": "eg",
+  "Arabia Saudita": "sa",
+  "Uruguay": "uy",
+  "Irán": "ir",
+  "Nueva Zelanda": "nz",
+  "Francia": "fr",
+  "Senegal": "sn",
+  "Irak": "iq",
+  "Noruega": "no",
+  "Argentina": "ar",
+  "Argelia": "dz",
+  "Austria": "at",
+  "Jordania": "jo",
+  "Portugal": "pt",
+  "RD Congo": "cd",
+  "Inglaterra": "gb",
+  "Croacia": "hr",
+  "Ghana": "gh",
+  "Panamá": "pa",
+  "Uzbekistán": "uz",
+  "Colombia": "co",
 };
 
-function equipoConBandera(equipo: string) {
-  return `${FLAGS[equipo] ?? "🏳️"} ${equipo}`;
+function BanderaEquipo({ equipo }: { equipo: string }) {
+  const code = FLAG_CODES[equipo];
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      {code ? (
+        <img
+          src={`https://flagcdn.com/w40/${code}.png`}
+          alt={equipo}
+          className="h-5 w-7 rounded object-cover border border-zinc-600"
+        />
+      ) : (
+        <div className="h-5 w-7 bg-zinc-700 rounded" />
+      )}
+      <span>{equipo}</span>
+    </span>
+  );
 }
 
 export default function Home() {
@@ -609,10 +624,19 @@ export default function Home() {
                                 {match.phase}
                               </p>
 
-                              <p className="font-black">
-                                {equipoConBandera(match.home_team)} vs{" "}
-                                {equipoConBandera(match.away_team)}
-                              </p>
+                              <div className="space-y-1">
+                              <div className="font-black">
+                            <BanderaEquipo equipo={match.home_team} />
+                             </div>
+
+                              <div className="text-orange-400 font-black text-sm">
+                                 VS
+                              </div>
+
+                            <div className="font-black">
+                              <BanderaEquipo equipo={match.away_team} />
+                            </div>
+                          </div>
 
                               <p className="text-[#ffcc00] text-sm font-bold mt-1">
                                 🕒 {formatearFecha(match.match_date)}
