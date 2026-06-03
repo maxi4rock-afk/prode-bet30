@@ -1,5 +1,4 @@
 "use client";
-console.log("VERSION NUEVA 03-06");
 
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
@@ -10,6 +9,7 @@ type Match = {
   match_date: string | null;
   home_team: string;
   away_team: string;
+  locked: boolean | null;
 };
 
 type Score = {
@@ -52,10 +52,7 @@ export default function Home() {
   }, []);
 
   function normalizarUsuario(valor: string) {
-    return String(valor || "")
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, "");
+    return String(valor || "").toLowerCase().trim().replace(/\s+/g, "");
   }
 
   function formatearFecha(fecha: string | null) {
@@ -80,19 +77,14 @@ export default function Home() {
     return `${dia} - ${hora} hs`;
   }
 
-  function partidoBloqueado(fecha: string | null) {
-    if (!fecha) return false;
-
-    const date = new Date(fecha);
-    if (isNaN(date.getTime())) return false;
-
-    return date.getTime() <= Date.now();
+  function partidoBloqueado(match: Match) {
+    return !!match.locked;
   }
 
   async function cargarPartidos() {
     const { data, error } = await supabase
       .from("matches")
-      .select("id, phase, match_date, home_team, away_team")
+      .select("id, phase, match_date, home_team, away_team, locked")
       .order("match_date", { ascending: true });
 
     if (error) {
@@ -178,12 +170,7 @@ export default function Home() {
       setMensaje("Error al validar acceso.");
       return;
     }
-    console.log("USUARIO LIMPIO:", usuarioLimpio);
-    console.log("ALLOWED USERS CRUDOS:", allowedUsers);
-  console.log(
-  "ALLOWED USERS NORMALIZADOS:",
-  (allowedUsers || []).map((u) => normalizarUsuario(u.casino_user))
-    );
+
     const autorizado = (allowedUsers || []).some((u) => {
       return normalizarUsuario(u.casino_user) === usuarioLimpio;
     });
@@ -255,7 +242,7 @@ export default function Home() {
 
     const match = matches.find((m) => m.id === matchId);
 
-    if (partidoBloqueado(match?.match_date ?? null)) {
+    if (!match || partidoBloqueado(match)) {
       setMensaje("🔒 Este partido ya está cerrado.");
       return;
     }
@@ -300,7 +287,7 @@ export default function Home() {
     }
 
     const pronosticosParaGuardar = matches
-      .filter((match) => !partidoBloqueado(match.match_date))
+      .filter((match) => !partidoBloqueado(match))
       .filter((match) => {
         const pred = predictions[match.id];
 
@@ -508,7 +495,7 @@ export default function Home() {
 
           <div className="space-y-4">
             {matches.map((match) => {
-              const bloqueado = partidoBloqueado(match.match_date);
+              const bloqueado = partidoBloqueado(match);
 
               return (
                 <div
