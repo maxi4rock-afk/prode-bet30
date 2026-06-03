@@ -1,23 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 
 type Match = {
   id: string;
   phase: string;
-  match_date: string;
+  match_date: string | null;
   home_team: string;
   away_team: string;
   real_home_goals: number | null;
   real_away_goals: number | null;
-  locked: boolean | null;
-};
-
-type Player = {
-  id: string;
-  full_name: string | null;
-  casino_user: string | null;
+  locked: boolean;
 };
 
 type Prediction = {
@@ -27,16 +21,14 @@ type Prediction = {
   predicted_away_goals: number;
 };
 
-type ScoreRow = {
-  id: string;
-  points: number;
-  players: Player | Player[] | null;
-};
-
 type RankingRow = {
-  id: string;
+  id: number;
+  player_id: string;
   points: number;
-  player: Player | null;
+  players?: {
+    full_name: string | null;
+    casino_user: string | null;
+  } | null;
 };
 
 function parseGoalValue(value: string) {
@@ -44,80 +36,42 @@ function parseGoalValue(value: string) {
   return Number(value);
 }
 
-function getOutcome(homeGoals: number, awayGoals: number) {
-  if (homeGoals > awayGoals) return "home";
-  if (homeGoals < awayGoals) return "away";
-  return "draw";
-}
+function formatearFechaArgentina(fecha: string | null) {
+  if (!fecha) return "Fecha pendiente";
 
-function calculatePredictionPoints(
-  prediction: Prediction,
-  match: Pick<Match, "real_home_goals" | "real_away_goals">
-) {
-  const realHome = match.real_home_goals;
-  const realAway = match.real_away_goals;
+  const date = new Date(fecha);
+  if (isNaN(date.getTime())) return "Fecha inválida";
 
-  if (realHome === null || realAway === null) return 0;
-
-  const exact =
-    prediction.predicted_home_goals === realHome &&
-    prediction.predicted_away_goals === realAway;
-
-  if (exact) return 8;
-
-  let points = 0;
-
-  const predictedOutcome = getOutcome(
-    prediction.predicted_home_goals,
-    prediction.predicted_away_goals
-  );
-  const realOutcome = getOutcome(realHome, realAway);
-
-  if (predictedOutcome === realOutcome) {
-    points += 3;
-  }
-
-  const predictedDifference =
-    prediction.predicted_home_goals - prediction.predicted_away_goals;
-  const realDifference = realHome - realAway;
-
-  if (predictedDifference === realDifference) {
-    points += 2;
-  }
-
-  return points;
+  return date.toLocaleString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function AdminPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [ranking, setRanking] = useState<RankingRow[]>([]);
   const [mensaje, setMensaje] = useState("");
-  const [guardandoId, setGuardandoId] = useState<string | null>(null);
   const [calculando, setCalculando] = useState(false);
-
-  const completedMatches = useMemo(
-    () =>
-      matches.filter(
-        (match) =>
-          match.real_home_goals !== null && match.real_away_goals !== null
-      ).length,
-    [matches]
-  );
+  const [guardandoId, setGuardandoId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadInitialData() {
-      await Promise.all([cargarPartidos(), cargarRanking()]);
-    }
-
-    loadInitialData();
+    cargarPartidos();
+    cargarRanking();
   }, []);
+
+  const completedMatches = matches.filter(
+    (m) => m.real_home_goals !== null && m.real_away_goals !== null
+  ).length;
 
   async function cargarPartidos() {
     const { data, error } = await supabase
       .from("matches")
-      .select(
-        "id, phase, match_date, home_team, away_team, real_home_goals, real_away_goals, locked"
-      )
+      .select("*")
       .order("match_date", { ascending: true });
 
     if (error) {
@@ -126,23 +80,21 @@ export default function AdminPage() {
       return;
     }
 
-    setMatches((data ?? []) as Match[]);
+    setMatches((data || []) as Match[]);
   }
 
   async function cargarRanking() {
     const { data, error } = await supabase
       .from("score")
-      .select(
-        `
+      .select(`
         id,
+        player_id,
         points,
         players (
-          id,
           full_name,
           casino_user
         )
-      `
-      )
+      `)
       .order("points", { ascending: false });
 
     if (error) {
@@ -151,21 +103,17 @@ export default function AdminPage() {
       return;
     }
 
-    const formattedRanking = ((data ?? []) as ScoreRow[]).map((row) => ({
+    const formatted = (data || []).map((row: any) => ({
       id: row.id,
+      player_id: row.player_id,
       points: row.points,
-      player: Array.isArray(row.players) ? row.players[0] ?? null : row.players,
+      players: Array.isArray(row.players) ? row.players[0] : row.players,
     }));
 
-    setRanking(formattedRanking);
+    setRanking(formatted);
   }
 
   async function guardarResultado(match: Match) {
-    if (match.real_home_goals === null || match.real_away_goals === null) {
-      setMensaje("Completá los goles reales antes de guardar.");
-      return;
-    }
-
     setGuardandoId(match.id);
     setMensaje("");
 
@@ -178,126 +126,228 @@ export default function AdminPage() {
       })
       .eq("id", match.id);
 
+    setGuardandoId(null);
+
     if (error) {
       console.log(error);
       setMensaje("Error al guardar resultado.");
-      setGuardandoId(null);
       return;
     }
 
-    setMatches((prev) =>
-      prev.map((item) =>
-        item.id === match.id ? { ...item, locked: true } : item
-      )
+    setMensaje("✅ Resultado guardado y partido bloqueado.");
+    await cargarPartidos();
+  }
+
+  async function toggleBloqueo(match: Match) {
+    setGuardandoId(match.id);
+    setMensaje("");
+
+    const { error } = await supabase
+      .from("matches")
+      .update({
+        locked: !match.locked,
+      })
+      .eq("id", match.id);
+
+    setGuardandoId(null);
+
+    if (error) {
+      console.log(error);
+      setMensaje("Error al cambiar bloqueo.");
+      return;
+    }
+
+    setMensaje(match.locked ? "🔓 Partido desbloqueado." : "🔒 Partido bloqueado.");
+    await cargarPartidos();
+  }
+
+  async function resetearResultado(matchId: string) {
+    setGuardandoId(matchId);
+    setMensaje("");
+
+    const { error } = await supabase
+      .from("matches")
+      .update({
+        real_home_goals: null,
+        real_away_goals: null,
+        locked: false,
+      })
+      .eq("id", matchId);
+
+    setGuardandoId(null);
+
+    if (error) {
+      console.log(error);
+      setMensaje("Error al resetear resultado.");
+      return;
+    }
+
+    setMensaje("✅ Resultado reseteado y partido desbloqueado.");
+    await cargarPartidos();
+  }
+
+  async function resetearTodosLosResultados() {
+    const confirmar = confirm(
+      "¿Seguro que querés borrar todos los resultados y desbloquear todos los partidos?"
     );
 
-    const rankingActualizado = await calcularRanking();
-    if (rankingActualizado) {
-      setMensaje("Resultado guardado, partido bloqueado y ranking actualizado.");
+    if (!confirmar) return;
+
+    setMensaje("Reseteando resultados...");
+
+    const { error } = await supabase
+      .from("matches")
+      .update({
+        real_home_goals: null,
+        real_away_goals: null,
+        locked: false,
+      })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (error) {
+      console.log(error);
+      setMensaje("Error al resetear todos los resultados.");
+      return;
     }
-    setGuardandoId(null);
+
+    setMensaje("✅ Todos los resultados fueron reseteados.");
+    await cargarPartidos();
+  }
+
+  async function resetearRanking() {
+    const confirmar = confirm("¿Seguro que querés dejar el ranking en 0?");
+
+    if (!confirmar) return;
+
+    setMensaje("Reseteando ranking...");
+
+    const { error } = await supabase
+      .from("score")
+      .update({
+        points: 0,
+        updated_at: new Date().toISOString(),
+      })
+      .neq("id", -1);
+
+    if (error) {
+      console.log(error);
+      setMensaje("Error al resetear ranking.");
+      return;
+    }
+
+    setMensaje("✅ Ranking reseteado a 0.");
+    await cargarRanking();
+  }
+
+  function calcularPuntos(pred: Prediction, match: Match) {
+    if (match.real_home_goals === null || match.real_away_goals === null) {
+      return 0;
+    }
+
+    const realHome = match.real_home_goals;
+    const realAway = match.real_away_goals;
+    const predHome = pred.predicted_home_goals;
+    const predAway = pred.predicted_away_goals;
+
+    if (predHome === realHome && predAway === realAway) {
+      return 8;
+    }
+
+    const realDiff = realHome - realAway;
+    const predDiff = predHome - predAway;
+
+    const realResult =
+      realHome > realAway ? "home" : realHome < realAway ? "away" : "draw";
+
+    const predResult =
+      predHome > predAway ? "home" : predHome < predAway ? "away" : "draw";
+
+    let puntos = 0;
+
+    if (realResult === predResult) puntos += 3;
+    if (realDiff === predDiff) puntos += 2;
+
+    return puntos;
   }
 
   async function calcularRanking() {
     setCalculando(true);
-    setMensaje("");
+    setMensaje("Calculando ranking...");
 
-    const [
-      { data: playersData, error: playersError },
-      { data: matchesData, error: matchesError },
-      { data: predictionsData, error: predictionsError },
-      { data: currentScoresData, error: scoresError },
-    ] = await Promise.all([
-      supabase.from("players").select("id, full_name, casino_user"),
-      supabase
-        .from("matches")
-        .select("id, real_home_goals, real_away_goals")
-        .not("real_home_goals", "is", null)
-        .not("real_away_goals", "is", null),
-      supabase
-        .from("predictions")
-        .select(
-          "player_id, match_id, predicted_home_goals, predicted_away_goals"
-        ),
-      supabase.from("score").select("id, player_id"),
-    ]);
+    const { data: matchesData, error: matchesError } = await supabase
+      .from("matches")
+      .select("*")
+      .not("real_home_goals", "is", null)
+      .not("real_away_goals", "is", null);
 
-    if (playersError || matchesError || predictionsError || scoresError) {
-      console.log(playersError || matchesError || predictionsError || scoresError);
-      setMensaje("Error al calcular ranking.");
+    if (matchesError) {
+      console.log(matchesError);
+      setMensaje("Error al leer resultados.");
       setCalculando(false);
-      return false;
+      return;
     }
 
-    const players = (playersData ?? []) as Player[];
-    const playedMatches = new Map(
-      ((matchesData ?? []) as Pick<
-        Match,
-        "id" | "real_home_goals" | "real_away_goals"
-      >[]).map((match) => [match.id, match])
-    );
-    const pointsByPlayer = new Map(players.map((player) => [player.id, 0]));
+    const { data: predictionsData, error: predictionsError } = await supabase
+      .from("predictions")
+      .select("player_id, match_id, predicted_home_goals, predicted_away_goals");
 
-    ((predictionsData ?? []) as Prediction[]).forEach((prediction) => {
-      const match = playedMatches.get(prediction.match_id);
+    if (predictionsError) {
+      console.log(predictionsError);
+      setMensaje("Error al leer pronósticos.");
+      setCalculando(false);
+      return;
+    }
+
+    const puntosPorJugador: Record<string, number> = {};
+
+    (predictionsData || []).forEach((pred) => {
+      const match = (matchesData || []).find((m) => m.id === pred.match_id);
       if (!match) return;
 
-      pointsByPlayer.set(
-        prediction.player_id,
-        (pointsByPlayer.get(prediction.player_id) ?? 0) +
-          calculatePredictionPoints(prediction, match)
-      );
+      const puntos = calcularPuntos(pred as Prediction, match as Match);
+
+      puntosPorJugador[pred.player_id] =
+        (puntosPorJugador[pred.player_id] || 0) + puntos;
     });
 
-    const currentScoresByPlayer = new Map(
-      ((currentScoresData ?? []) as { id: string; player_id: string }[]).map(
-        (score) => [score.player_id, score.id]
-      )
-    );
+    const rows = Object.entries(puntosPorJugador).map(([player_id, points]) => ({
+      player_id,
+      points,
+      updated_at: new Date().toISOString(),
+    }));
 
-    const newScoreRows: { player_id: string; points: number }[] = [];
+    const { error: deleteError } = await supabase
+      .from("score")
+      .delete()
+      .neq("id", -1);
 
-    for (const [playerId, points] of pointsByPlayer) {
-      const scoreId = currentScoresByPlayer.get(playerId);
-
-      if (!scoreId) {
-        newScoreRows.push({ player_id: playerId, points });
-        continue;
-      }
-
-      const { error } = await supabase
-        .from("score")
-        .update({ points })
-        .eq("id", scoreId);
-
-      if (error) {
-        console.log(error);
-        setMensaje("Error al actualizar la tabla score.");
-        setCalculando(false);
-        return false;
-      }
+    if (deleteError) {
+      console.log(deleteError);
+      setMensaje("Error al limpiar ranking.");
+      setCalculando(false);
+      return;
     }
 
-    if (newScoreRows.length > 0) {
-      const { error } = await supabase.from("score").insert(newScoreRows);
+    if (rows.length > 0) {
+      const { error: insertError } = await supabase.from("score").insert(rows);
 
-      if (error) {
-        console.log(error);
-        setMensaje("Error al crear puntajes en la tabla score.");
+      if (insertError) {
+        console.log(insertError);
+        setMensaje("Error al crear puntajes.");
         setCalculando(false);
-        return false;
+        return;
       }
     }
 
     await cargarRanking();
-    setMensaje("Ranking calculado y tabla score actualizada.");
+
+    setMensaje("🏆 Ranking calculado correctamente.");
     setCalculando(false);
-    return true;
   }
 
   return (
-    <main className="min-h-screen bg-black p-6 text-white">
-      <section className="mx-auto max-w-6xl">
+    <main className="min-h-screen bg-black text-white p-6">
+      <section className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-bold uppercase text-yellow-400">
@@ -309,13 +359,29 @@ export default function AdminPage() {
             </p>
           </div>
 
-          <button
-            onClick={calcularRanking}
-            disabled={calculando}
-            className="rounded bg-yellow-500 px-5 py-3 font-bold text-black disabled:cursor-not-allowed disabled:bg-gray-600 disabled:text-white"
-          >
-            {calculando ? "Calculando..." : "Calcular ranking"}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={resetearTodosLosResultados}
+              className="rounded bg-red-600 px-5 py-3 font-bold text-white"
+            >
+              Resetear resultados
+            </button>
+
+            <button
+              onClick={resetearRanking}
+              className="rounded bg-zinc-700 px-5 py-3 font-bold text-white"
+            >
+              Ranking a 0
+            </button>
+
+            <button
+              onClick={calcularRanking}
+              disabled={calculando}
+              className="rounded bg-yellow-500 px-5 py-3 font-bold text-black disabled:cursor-not-allowed disabled:bg-gray-600 disabled:text-white"
+            >
+              {calculando ? "Calculando..." : "Calcular ranking"}
+            </button>
+          </div>
         </div>
 
         {mensaje && (
@@ -328,24 +394,25 @@ export default function AdminPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold">Resultados reales</h2>
 
-            {matches.length === 0 && (
-              <p className="rounded bg-zinc-900 p-4 text-gray-400">
-                No hay partidos cargados.
-              </p>
-            )}
-
             {matches.map((match) => (
               <div
                 key={match.id}
-                className="grid gap-3 rounded bg-zinc-900 p-4 md:grid-cols-5 md:items-center"
+                className="grid gap-3 rounded bg-zinc-900 p-4 md:grid-cols-7 md:items-center"
               >
                 <div className="md:col-span-2">
                   <p className="text-sm text-gray-400">{match.phase}</p>
                   <p className="font-bold">
                     {match.home_team} vs {match.away_team}
                   </p>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {match.locked ? "Bloqueado" : "Pendiente"}
+                  <p className="mt-1 text-sm font-bold text-yellow-400">
+                    🕒 {formatearFechaArgentina(match.match_date)}
+                  </p>
+                  <p
+                    className={`mt-1 text-sm font-bold ${
+                      match.locked ? "text-red-400" : "text-green-400"
+                    }`}
+                  >
+                    {match.locked ? "🔒 Bloqueado" : "🔓 Abierto"}
                   </p>
                 </div>
 
@@ -361,9 +428,7 @@ export default function AdminPage() {
                         item.id === match.id
                           ? {
                               ...item,
-                              real_home_goals: parseGoalValue(
-                                event.target.value
-                              ),
+                              real_home_goals: parseGoalValue(event.target.value),
                             }
                           : item
                       )
@@ -383,9 +448,7 @@ export default function AdminPage() {
                         item.id === match.id
                           ? {
                               ...item,
-                              real_away_goals: parseGoalValue(
-                                event.target.value
-                              ),
+                              real_away_goals: parseGoalValue(event.target.value),
                             }
                           : item
                       )
@@ -398,7 +461,27 @@ export default function AdminPage() {
                   disabled={guardandoId === match.id || calculando}
                   className="rounded bg-yellow-500 p-3 font-bold text-black disabled:cursor-not-allowed disabled:bg-gray-600 disabled:text-white"
                 >
-                  {guardandoId === match.id ? "Guardando..." : "Guardar"}
+                  {guardandoId === match.id ? "..." : "Guardar"}
+                </button>
+
+                <button
+                  onClick={() => toggleBloqueo(match)}
+                  disabled={guardandoId === match.id || calculando}
+                  className={`rounded p-3 font-bold ${
+                    match.locked
+                      ? "bg-green-600 text-white"
+                      : "bg-red-600 text-white"
+                  }`}
+                >
+                  {match.locked ? "Desbloquear" : "Bloquear"}
+                </button>
+
+                <button
+                  onClick={() => resetearResultado(match.id)}
+                  disabled={guardandoId === match.id || calculando}
+                  className="rounded bg-zinc-700 p-3 font-bold text-white"
+                >
+                  Reset
                 </button>
               </div>
             ))}
@@ -406,12 +489,6 @@ export default function AdminPage() {
 
           <aside>
             <h2 className="mb-4 text-2xl font-bold">Ranking</h2>
-
-            {ranking.length === 0 && (
-              <p className="rounded bg-zinc-900 p-4 text-gray-400">
-                Todavía no hay puntos cargados.
-              </p>
-            )}
 
             <div className="space-y-3">
               {ranking.map((score, index) => (
@@ -422,10 +499,10 @@ export default function AdminPage() {
                   <div>
                     <p className="font-bold">
                       #{index + 1}{" "}
-                      {score.player?.full_name || score.player?.casino_user}
+                      {score.players?.full_name || score.players?.casino_user}
                     </p>
                     <p className="text-sm text-gray-400">
-                      {score.player?.casino_user}
+                      {score.players?.casino_user}
                     </p>
                   </div>
                   <p className="font-bold text-yellow-400">
