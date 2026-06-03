@@ -33,6 +33,7 @@ export default function Home() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [predictions, setPredictions] = useState<Record<string, PredictionInput>>({});
   const [scores, setScores] = useState<Score[]>([]);
+  const [rankingAbierto, setRankingAbierto] = useState(false);
 
   useEffect(() => {
     cargarPartidos();
@@ -66,13 +67,18 @@ export default function Home() {
     const date = new Date(fecha);
     if (isNaN(date.getTime())) return "Fecha inválida";
 
-    return date.toLocaleString("es-AR", {
+    const dia = date.toLocaleDateString("es-AR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
+    });
+
+    const hora = date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
       minute: "2-digit",
     });
+
+    return `${dia} - ${hora} hs`;
   }
 
   function partidoBloqueado(fecha: string | null) {
@@ -342,39 +348,39 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b0b0f] text-white p-6">
+    <main className="min-h-screen bg-[#08080c] text-white p-4 md:p-6">
       <section className="max-w-6xl mx-auto">
-        <div className="text-center mb-10">
-          <p className="text-sm tracking-[0.35em] uppercase text-orange-400 mb-3">
+        <div className="text-center mb-8">
+          <p className="text-xs tracking-[0.45em] uppercase text-orange-400 mb-3">
             Prime Rock x BET30
           </p>
 
-          <h1 className="text-5xl md:text-6xl font-black mb-4">
+          <h1 className="text-4xl md:text-6xl font-black mb-3">
             🏆 Prode Mundial{" "}
             <span className="text-[#e8357a]">BET</span>
             <span className="text-[#2255ee]">30</span>
           </h1>
 
-          <p className="text-xl text-gray-300">
+          <p className="text-gray-300">
             Participá con una carga mínima de{" "}
             <span className="text-orange-400 font-bold">$25.000</span>
           </p>
         </div>
 
-        <div className="bg-gradient-to-r from-[#120826] via-[#1e0b42] to-[#14141f] border border-[#2a0f5e] p-6 rounded-2xl space-y-4 mb-8 shadow-[0_0_35px_rgba(232,53,122,0.18)]">
-          <h2 className="text-2xl font-bold">Ingresar al Prode</h2>
+        <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
+          <h2 className="text-xl font-black mb-4">Ingresar al Prode</h2>
 
           {!playerId ? (
-            <>
+            <div className="space-y-3">
               <input
-                className="w-full p-3 rounded bg-white text-black outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
                 placeholder="Número de WhatsApp"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
               />
 
               <input
-                className="w-full p-3 rounded bg-white text-black outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
                 placeholder="Usuario BET30"
                 value={usuario}
                 onChange={(e) => setUsuario(e.target.value)}
@@ -386,7 +392,7 @@ export default function Home() {
               >
                 Ingresar
               </button>
-            </>
+            </div>
           ) : (
             <div className="text-center">
               <p className="text-green-400 font-bold">
@@ -403,29 +409,43 @@ export default function Home() {
           )}
 
           {mensaje && (
-            <p className="text-center text-orange-300 font-bold">{mensaje}</p>
+            <p className="text-center text-orange-300 font-bold mt-4">
+              {mensaje}
+            </p>
           )}
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-[#111118] border border-[#2a0f5e] p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
-            <h2 className="text-2xl font-black mb-4 text-orange-400">
-              🏆 Ranking
-            </h2>
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-black text-orange-400">
+                🏆 Top Prode
+              </h2>
+
+              <button
+                onClick={() => setRankingAbierto(true)}
+                className="text-sm bg-[#2255ee] px-3 py-2 rounded font-bold hover:bg-[#e8357a] transition"
+              >
+                Ver ranking completo
+              </button>
+            </div>
 
             {scores.length === 0 && (
               <p className="text-gray-400">Todavía no hay puntos cargados.</p>
             )}
 
             <div className="space-y-3">
-              {scores.map((score, index) => (
+              {scores.slice(0, 3).map((score, index) => (
                 <div
                   key={score.id}
                   className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl flex justify-between"
                 >
                   <div>
                     <p className="font-bold">
-                      #{index + 1} {score.players?.full_name ?? "Sin nombre"}
+                      {index === 0 && "🥇 "}
+                      {index === 1 && "🥈 "}
+                      {index === 2 && "🥉 "}
+                      {score.players?.full_name ?? "Sin nombre"}
                     </p>
                     <p className="text-sm text-gray-400">
                       {score.players?.casino_user ?? "Sin usuario"}
@@ -440,27 +460,18 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-[#120826] via-[#1e0b42] to-[#111118] border border-[#e8357a]/40 p-6 rounded-2xl shadow-[0_0_25px_rgba(232,53,122,0.18)]">
-            <h2 className="text-2xl font-black mb-4 text-[#e8357a]">
+          <div className="bg-[#111118] border border-[#e8357a] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(232,53,122,0.18)]">
+            <h2 className="text-xl font-black mb-4 text-[#e8357a]">
               🎁 Premios
             </h2>
 
-            <div className="space-y-3 text-lg">
-              <p>
-                🥇 1° Puesto:{" "}
-                <span className="font-bold text-[#ffcc00]">$700.000</span>
-              </p>
-              <p>
-                🥈 2° Puesto:{" "}
-                <span className="font-bold text-[#ffcc00]">$200.000</span>
-              </p>
-              <p>
-                🥉 3° Puesto:{" "}
-                <span className="font-bold text-[#ffcc00]">$100.000</span>
-              </p>
+            <div className="space-y-3 text-base md:text-lg">
+              <p>🥇 1° Puesto: <span className="font-bold text-[#ffcc00]">$700.000</span></p>
+              <p>🥈 2° Puesto: <span className="font-bold text-[#ffcc00]">$200.000</span></p>
+              <p>🥉 3° Puesto: <span className="font-bold text-[#ffcc00]">$100.000</span></p>
             </div>
 
-            <div className="mt-6 border-t border-white/10 pt-4">
+            <div className="mt-6 border-t border-white/10 pt-4 text-sm">
               <h3 className="font-bold mb-2 text-orange-400">
                 Sistema de puntos
               </h3>
@@ -471,7 +482,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="bg-[#111118] border border-zinc-800 p-6 rounded-2xl">
+        <div className="bg-[#111118] border border-zinc-700 p-5 md:p-6 rounded-2xl">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
             <h2 className="text-2xl font-black">Fixture y pronósticos</h2>
 
@@ -497,13 +508,15 @@ export default function Home() {
                   className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
                 >
                   <div className="md:col-span-2">
-                    <p className="text-sm text-orange-300">{match.phase}</p>
+                    <p className="text-xs text-orange-300 uppercase font-bold">
+                      {match.phase}
+                    </p>
 
-                    <p className="font-bold">
+                    <p className="font-black">
                       {match.home_team} vs {match.away_team}
                     </p>
 
-                    <p className="text-[#ffcc00] font-bold mt-1">
+                    <p className="text-[#ffcc00] text-sm font-bold mt-1">
                       🕒 {formatearFecha(match.match_date)}
                     </p>
 
@@ -516,7 +529,7 @@ export default function Home() {
 
                   <input
                     disabled={bloqueado}
-                    className="p-3 rounded bg-white text-black text-center outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-400"
+                    className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
                     type="number"
                     min="0"
                     placeholder="Local"
@@ -534,7 +547,7 @@ export default function Home() {
 
                   <input
                     disabled={bloqueado}
-                    className="p-3 rounded bg-white text-black text-center outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-400"
+                    className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
                     type="number"
                     min="0"
                     placeholder="Visitante"
@@ -567,6 +580,47 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {rankingAbierto && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#111118] border border-[#7c3aed] rounded-2xl p-5 md:p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-[0_0_40px_rgba(124,58,237,0.35)]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-black text-orange-400">
+                🏆 Ranking completo
+              </h2>
+
+              <button
+                onClick={() => setRankingAbierto(false)}
+                className="bg-red-500 px-4 py-2 rounded font-bold"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {scores.map((score, index) => (
+                <div
+                  key={score.id}
+                  className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl flex justify-between"
+                >
+                  <div>
+                    <p className="font-bold">
+                      #{index + 1} {score.players?.full_name ?? "Sin nombre"}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      {score.players?.casino_user ?? "Sin usuario"}
+                    </p>
+                  </div>
+
+                  <p className="text-[#ffcc00] font-black">
+                    {score.points} pts
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
