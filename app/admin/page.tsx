@@ -3,6 +3,61 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 
+function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  function ingresar() {
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+
+    if (!adminPassword) {
+      setError("Falta configurar la contraseña admin.");
+      return;
+    }
+
+    if (password === adminPassword) {
+      sessionStorage.setItem("admin_auth", "true");
+      onLogin();
+      return;
+    }
+
+    setError("Contraseña incorrecta.");
+  }
+
+  return (
+    <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-6 border border-yellow-500">
+        <h1 className="text-3xl font-black mb-2">🔐 Admin BET30</h1>
+        <p className="text-gray-400 mb-4">
+          Ingresá la contraseña para acceder al panel.
+        </p>
+
+        <input
+          type="password"
+          placeholder="Contraseña admin"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") ingresar();
+          }}
+          className="w-full rounded bg-white p-3 text-black mb-3"
+        />
+
+        <button
+          onClick={ingresar}
+          className="w-full rounded bg-yellow-500 p-3 font-bold text-black"
+        >
+          Ingresar
+        </button>
+
+        {error && (
+          <p className="mt-4 text-center font-bold text-red-400">{error}</p>
+        )}
+      </div>
+    </main>
+  );
+}
+
 type Match = {
   id: string;
   phase: string;
@@ -53,6 +108,8 @@ function formatearFechaArgentina(fecha: string | null) {
 }
 
 export default function AdminPage() {
+  const [adminAutorizado, setAdminAutorizado] = useState(false);
+  const [adminAutorizado, setAdminAutorizado] = useState(false);
   const [matches, setMatches] = useState<Match[]>([]);
   const [ranking, setRanking] = useState<RankingRow[]>([]);
   const [mensaje, setMensaje] = useState("");
@@ -60,8 +117,27 @@ export default function AdminPage() {
   const [guardandoId, setGuardandoId] = useState<string | null>(null);
 
   useEffect(() => {
-    cargarPartidos();
-    cargarRanking();
+  const auth = sessionStorage.getItem("admin_auth");
+
+  if (auth === "true") {
+    setAdminAutorizado(true);
+  }
+}, []);
+
+  useEffect(() => {
+    const isAdmin = sessionStorage.getItem("admin_auth") === "true";
+    setAdminAutorizado(isAdmin);
+    useEffect(() => {
+  const auth = sessionStorage.getItem("admin_auth");
+  if (auth === "true") {
+    setAdminAutorizado(true);
+  }
+}, []);
+
+    if (isAdmin) {
+      cargarPartidos();
+      cargarRanking();
+    }
   }, []);
 
   const completedMatches = matches.filter(
@@ -266,7 +342,10 @@ export default function AdminPage() {
 
     if (realResult === predResult) puntos += 3;
     if (realDiff === predDiff) puntos += 2;
-
+    
+    if (!adminAutorizado) {
+  return <AdminLogin onLogin={() => setAdminAutorizado(true)} />;
+}
     return puntos;
   }
 
@@ -345,7 +424,63 @@ export default function AdminPage() {
     setCalculando(false);
   }
 
+  function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  function ingresar() {
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+
+    if (!adminPassword) {
+      setError("Falta configurar la contraseña admin.");
+      return;
+    }
+
+    if (password === adminPassword) {
+      sessionStorage.setItem("admin_auth", "true");
+      onLogin();
+      return;
+    }
+
+    setError("Contraseña incorrecta.");
+  }
+
   return (
+    <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-6 border border-yellow-500">
+        <h1 className="text-3xl font-black mb-2">🔐 Admin BET30</h1>
+        <p className="text-gray-400 mb-4">
+          Ingresá la contraseña para acceder al panel.
+        </p>
+
+        <input
+          type="password"
+          placeholder="Contraseña admin"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") ingresar();
+          }}
+          className="w-full rounded bg-white p-3 text-black mb-3"
+        />
+
+        <button
+          onClick={ingresar}
+          className="w-full rounded bg-yellow-500 p-3 font-bold text-black"
+        >
+          Ingresar
+        </button>
+
+        {error && (
+          <p className="mt-4 text-red-400 font-bold text-center">{error}</p>
+        )}
+      </div>
+    </main>
+  );
+if (!adminAutorizado) {
+  return <AdminLogin onLogin={() => setAdminAutorizado(true)} />;
+  return (
+  
     <main className="min-h-screen bg-black text-white p-6">
       <section className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -516,4 +651,3 @@ export default function AdminPage() {
       </section>
     </main>
   );
-}
