@@ -54,11 +54,13 @@ export default function Home() {
   }, []);
 
   function normalizarUsuario(valor: string) {
-    return valor.toLowerCase().replace(/\s+/g, "");
+    return String(valor || "")
+      .toLowerCase()
+      .replace(/\s+/g, "");
   }
 
   function normalizarWhatsapp(valor: string) {
-    return valor.replace(/\D/g, "");
+    return String(valor || "").replace(/\D/g, "");
   }
 
   function formatearFecha(fecha: string | null) {
@@ -68,12 +70,14 @@ export default function Home() {
     if (isNaN(date.getTime())) return "Fecha inválida";
 
     const dia = date.toLocaleDateString("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     });
 
     const hora = date.toLocaleTimeString("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -156,65 +160,77 @@ export default function Home() {
   }
 
   async function registrarse() {
-    setMensaje("");
+  setMensaje("");
 
-    if (!whatsapp || !usuario) {
-      setMensaje("Completá usuario BET30 y WhatsApp.");
-      return;
-    }
+  if (!usuario) {
+    setMensaje("Ingresá tu usuario BET30.");
+    return;
+  }
 
-    const usuarioLimpio = normalizarUsuario(usuario);
-    const whatsappLimpio = normalizarWhatsapp(whatsapp);
+  const usuarioLimpio = normalizarUsuario(usuario);
 
-    if (!usuarioLimpio || !whatsappLimpio) {
-      setMensaje("Completá usuario BET30 y WhatsApp correctamente.");
-      return;
-    }
+  const { data: allowedUsers, error: authError } = await supabase
+    .from("allowed_players")
+    .select("casino_user");
 
-    const { data: autorizado, error: authError } = await supabase
-      .from("allowed_players")
-      .select("casino_user")
-      .eq("casino_user", usuarioLimpio)
-      .maybeSingle();
+  if (authError) {
+    console.log(authError);
+    setMensaje("Error al validar acceso.");
+    return;
+  }
 
-    if (authError) {
-      console.log(authError);
-      setMensaje("Error al validar acceso.");
-      return;
-    }
+  const autorizado = (allowedUsers || []).some(
+    (u) => normalizarUsuario(u.casino_user) === usuarioLimpio
+  );
 
-    if (!autorizado) {
-      setMensaje("No estás habilitado para participar. Contactá con soporte.");
-      return;
-    }
+  if (!autorizado) {
+    setMensaje("No estás habilitado para participar. Contactá con soporte.");
+    return;
+  }
 
-    const { data: existingPlayer, error: searchError } = await supabase
-      .from("players")
-      .select("id, casino_user, whatsapp")
-      .eq("casino_user", usuarioLimpio)
-      .maybeSingle();
+  const { data: existingPlayer } = await supabase
+    .from("players")
+    .select("*")
+    .eq("casino_user", usuarioLimpio)
+    .maybeSingle();
 
-    if (searchError) {
-      console.log(searchError);
-      setMensaje("Error al buscar usuario.");
-      return;
-    }
+  if (existingPlayer) {
+    setPlayerId(existingPlayer.id);
 
-    if (existingPlayer) {
-      setPlayerId(existingPlayer.id);
+    localStorage.setItem("playerId", existingPlayer.id);
+    localStorage.setItem("usuario", existingPlayer.casino_user);
 
-      localStorage.setItem("playerId", existingPlayer.id);
-      localStorage.setItem("usuario", existingPlayer.casino_user);
-      localStorage.setItem("whatsapp", existingPlayer.whatsapp || "");
+    setUsuario(existingPlayer.casino_user);
 
-      setUsuario(existingPlayer.casino_user);
-      setWhatsapp(existingPlayer.whatsapp || whatsappLimpio);
+    await cargarPronosticos(existingPlayer.id);
 
-      await cargarPronosticos(existingPlayer.id);
+    setMensaje("✅ Bienvenido nuevamente.");
+    return;
+  }
 
-      setMensaje("✅ Bienvenido nuevamente. Tus pronósticos anteriores fueron cargados.");
-      return;
-    }
+  const { data, error } = await supabase
+    .from("players")
+    .insert({
+      full_name: usuarioLimpio,
+      casino_user: usuarioLimpio,
+      paid: true,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.log(error);
+    setMensaje("Error al registrar.");
+    return;
+  }
+
+  setPlayerId(data.id);
+
+  localStorage.setItem("playerId", data.id);
+  localStorage.setItem("usuario", usuarioLimpio);
+
+  setMensaje("✅ Registro exitoso.");
+}
 
     const { data, error } = await supabase
       .from("players")
@@ -373,11 +389,11 @@ export default function Home() {
           {!playerId ? (
             <div className="space-y-3">
               <input
-                className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
-                placeholder="Número de WhatsApp"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-              />
+                className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white"
+                placeholder="Usuario BET30"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+/>
 
               <input
                 className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
@@ -466,9 +482,18 @@ export default function Home() {
             </h2>
 
             <div className="space-y-3 text-base md:text-lg">
-              <p>🥇 1° Puesto: <span className="font-bold text-[#ffcc00]">$700.000</span></p>
-              <p>🥈 2° Puesto: <span className="font-bold text-[#ffcc00]">$200.000</span></p>
-              <p>🥉 3° Puesto: <span className="font-bold text-[#ffcc00]">$100.000</span></p>
+              <p>
+                🥇 1° Puesto:{" "}
+                <span className="font-bold text-[#ffcc00]">$700.000</span>
+              </p>
+              <p>
+                🥈 2° Puesto:{" "}
+                <span className="font-bold text-[#ffcc00]">$200.000</span>
+              </p>
+              <p>
+                🥉 3° Puesto:{" "}
+                <span className="font-bold text-[#ffcc00]">$100.000</span>
+              </p>
             </div>
 
             <div className="mt-6 border-t border-white/10 pt-4 text-sm">
