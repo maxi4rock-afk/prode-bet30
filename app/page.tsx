@@ -178,7 +178,12 @@ export default function Home() {
       setMensaje("Error al validar acceso.");
       return;
     }
-
+    console.log("USUARIO LIMPIO:", usuarioLimpio);
+    console.log("ALLOWED USERS CRUDOS:", allowedUsers);
+  console.log(
+  "ALLOWED USERS NORMALIZADOS:",
+  (allowedUsers || []).map((u) => normalizarUsuario(u.casino_user))
+    );
     const autorizado = (allowedUsers || []).some((u) => {
       return normalizarUsuario(u.casino_user) === usuarioLimpio;
     });
