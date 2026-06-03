@@ -332,9 +332,7 @@ export default function Home() {
 
           <div className="space-y-4">
             {matches.map((match) => {
-              const bloqueado =
-                new Date(match.match_date).getTime() < Date.now();
-
+              const bloqueado = new Date(match.match_date).getTime() <= Date.now();
               return (
                 <div
                   key={match.id}
@@ -343,8 +341,29 @@ export default function Home() {
                   <div className="md:col-span-2">
                     <p className="text-sm text-gray-400">{match.phase}</p>
                     <p className="font-bold">
-                      {match.home_team} vs {match.away_team}
-                    </p>
+  {match.home_team} vs {match.away_team}
+</p>
+
+<p className="text-sm text-gray-400 mt-1">
+  📅{" "}
+  {new Date(match.match_date).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}
+</p>
+                    <p className="text-sm text-gray-400">
+  📅{" "}
+  {new Date(match.match_date).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}
+</p>
                     {bloqueado && (
                       <p className="text-red-400 text-sm mt-1">
                         🔒 Pronóstico cerrado
@@ -387,16 +406,16 @@ export default function Home() {
                   />
 
                   <button
-                    disabled={bloqueado}
-                    onClick={() => guardarPronostico(match.id)}
-                    className={`font-bold p-3 rounded ${
-                      bloqueado
-                        ? "bg-gray-600 text-white cursor-not-allowed"
-                        : "bg-yellow-500 text-black"
-                    }`}
-                  >
-                    {bloqueado ? "🔒 Cerrado" : "Guardar"}
-                  </button>
+  disabled={bloqueado}
+  onClick={() => guardarPronostico(match.id)}
+  className={`font-bold p-3 rounded ${
+    bloqueado
+      ? "bg-gray-600 text-white cursor-not-allowed"
+      : "bg-yellow-500 text-black"
+  }`}
+>
+  {bloqueado ? "🔒 Cerrado" : "Guardar"}
+</button>
                 </div>
               );
             })}
