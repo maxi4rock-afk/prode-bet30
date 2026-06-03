@@ -1,4 +1,5 @@
 "use client";
+console.log("VERSION NUEVA 03-06");
 
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
@@ -26,7 +27,6 @@ type PredictionInput = {
 };
 
 export default function Home() {
-  const [whatsapp, setWhatsapp] = useState("");
   const [usuario, setUsuario] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -40,7 +40,6 @@ export default function Home() {
     cargarRanking();
 
     const savedPlayerId = localStorage.getItem("playerId");
-    const savedWhatsapp = localStorage.getItem("whatsapp");
     const savedUsuario = localStorage.getItem("usuario");
 
     if (savedPlayerId) {
@@ -49,18 +48,14 @@ export default function Home() {
       setMensaje("✅ Sesión recuperada.");
     }
 
-    if (savedWhatsapp) setWhatsapp(savedWhatsapp);
     if (savedUsuario) setUsuario(savedUsuario);
   }, []);
 
   function normalizarUsuario(valor: string) {
     return String(valor || "")
       .toLowerCase()
+      .trim()
       .replace(/\s+/g, "");
-  }
-
-  function normalizarWhatsapp(valor: string) {
-    return String(valor || "").replace(/\D/g, "");
   }
 
   function formatearFecha(fecha: string | null) {
@@ -101,7 +96,7 @@ export default function Home() {
       .order("match_date", { ascending: true });
 
     if (error) {
-      console.log(error);
+      console.log("Error partidos:", error);
       setMensaje("Error al cargar partidos.");
       return;
     }
@@ -123,7 +118,7 @@ export default function Home() {
       .order("points", { ascending: false });
 
     if (error) {
-      console.log(error);
+      console.log("Error ranking:", error);
       return;
     }
 
@@ -143,7 +138,7 @@ export default function Home() {
       .eq("player_id", idJugador);
 
     if (error) {
-      console.log(error);
+      console.log("Error pronósticos:", error);
       return;
     }
 
@@ -160,83 +155,71 @@ export default function Home() {
   }
 
   async function registrarse() {
-  setMensaje("");
+    setMensaje("");
 
-  if (!usuario) {
-    setMensaje("Ingresá tu usuario BET30.");
-    return;
-  }
+    if (!usuario) {
+      setMensaje("Ingresá tu usuario BET30.");
+      return;
+    }
 
-  const usuarioLimpio = normalizarUsuario(usuario);
+    const usuarioLimpio = normalizarUsuario(usuario);
 
-  const { data: allowedUsers, error: authError } = await supabase
-    .from("allowed_players")
-    .select("casino_user");
+    if (!usuarioLimpio) {
+      setMensaje("Ingresá tu usuario BET30 correctamente.");
+      return;
+    }
 
-  if (authError) {
-    console.log(authError);
-    setMensaje("Error al validar acceso.");
-    return;
-  }
+    const { data: allowedUsers, error: authError } = await supabase
+      .from("allowed_players")
+      .select("casino_user");
 
-  const autorizado = (allowedUsers || []).some(
-    (u) => normalizarUsuario(u.casino_user) === usuarioLimpio
-  );
+    if (authError) {
+      console.log("Error allowed_players:", authError);
+      setMensaje("Error al validar acceso.");
+      return;
+    }
 
-  if (!autorizado) {
-    setMensaje("No estás habilitado para participar. Contactá con soporte.");
-    return;
-  }
+    const autorizado = (allowedUsers || []).some((u) => {
+      return normalizarUsuario(u.casino_user) === usuarioLimpio;
+    });
 
-  const { data: existingPlayer } = await supabase
-    .from("players")
-    .select("*")
-    .eq("casino_user", usuarioLimpio)
-    .maybeSingle();
+    if (!autorizado) {
+      setMensaje("No estás habilitado para participar. Contactá con soporte.");
+      return;
+    }
 
-  if (existingPlayer) {
-    setPlayerId(existingPlayer.id);
+    const { data: players, error: searchError } = await supabase
+      .from("players")
+      .select("id, full_name, casino_user");
 
-    localStorage.setItem("playerId", existingPlayer.id);
-    localStorage.setItem("usuario", existingPlayer.casino_user);
+    if (searchError) {
+      console.log("Error buscando player:", searchError);
+      setMensaje("Error al buscar usuario.");
+      return;
+    }
 
-    setUsuario(existingPlayer.casino_user);
+    const existingPlayer = (players || []).find((p) => {
+      return normalizarUsuario(p.casino_user) === usuarioLimpio;
+    });
 
-    await cargarPronosticos(existingPlayer.id);
+    if (existingPlayer) {
+      setPlayerId(existingPlayer.id);
 
-    setMensaje("✅ Bienvenido nuevamente.");
-    return;
-  }
+      localStorage.setItem("playerId", existingPlayer.id);
+      localStorage.setItem("usuario", existingPlayer.casino_user);
 
-  const { data, error } = await supabase
-    .from("players")
-    .insert({
-      full_name: usuarioLimpio,
-      casino_user: usuarioLimpio,
-      paid: true,
-    })
-    .select("id")
-    .single();
+      setUsuario(existingPlayer.casino_user);
 
-  if (error) {
-    console.log(error);
-    setMensaje("Error al registrar.");
-    return;
-  }
+      await cargarPronosticos(existingPlayer.id);
 
-  setPlayerId(data.id);
-
-  localStorage.setItem("playerId", data.id);
-  localStorage.setItem("usuario", usuarioLimpio);
-
-  setMensaje("✅ Registro exitoso.");
-}
+      setMensaje("✅ Bienvenido nuevamente. Tus pronósticos anteriores fueron cargados.");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("players")
       .insert({
         full_name: usuarioLimpio,
-        whatsapp: whatsappLimpio,
         casino_user: usuarioLimpio,
         paid: true,
       })
@@ -244,8 +227,8 @@ export default function Home() {
       .single();
 
     if (error) {
-      console.log(error);
-      setMensaje("Error al registrar. Revisá Supabase.");
+      console.log("Error creando player:", error);
+      setMensaje("Error al registrar.");
       return;
     }
 
@@ -253,12 +236,10 @@ export default function Home() {
 
     localStorage.setItem("playerId", data.id);
     localStorage.setItem("usuario", usuarioLimpio);
-    localStorage.setItem("whatsapp", whatsappLimpio);
 
     setUsuario(usuarioLimpio);
-    setWhatsapp(whatsappLimpio);
 
-    setMensaje("✅ Inscripción realizada. Ya podés cargar tus pronósticos.");
+    setMensaje("✅ Registro exitoso. Ya podés cargar tus pronósticos.");
   }
 
   async function guardarPronostico(matchId: string) {
@@ -299,7 +280,7 @@ export default function Home() {
     );
 
     if (error) {
-      console.log(error);
+      console.log("Error guardando pronóstico:", error);
       setMensaje("Error al guardar pronóstico.");
       return;
     }
@@ -346,7 +327,7 @@ export default function Home() {
     );
 
     if (error) {
-      console.log(error);
+      console.log("Error guardando todos:", error);
       setMensaje("Error al guardar todos los pronósticos.");
       return;
     }
@@ -355,9 +336,9 @@ export default function Home() {
   }
 
   function cerrarSesion() {
-    localStorage.clear();
+    localStorage.removeItem("playerId");
+    localStorage.removeItem("usuario");
     setPlayerId(null);
-    setWhatsapp("");
     setUsuario("");
     setPredictions({});
     setMensaje("Sesión cerrada.");
@@ -384,16 +365,13 @@ export default function Home() {
         </div>
 
         <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
-          <h2 className="text-xl font-black mb-4">Ingresar al Prode</h2>
+          <h2 className="text-xl font-black mb-2">Ingresar al Prode</h2>
 
           {!playerId ? (
             <div className="space-y-3">
-              <input
-                className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white"
-                placeholder="Usuario BET30"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-/>
+              <p className="text-sm text-gray-400">
+                Ingresá tu usuario BET30 para acceder al Prode.
+              </p>
 
               <input
                 className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
