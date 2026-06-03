@@ -624,19 +624,19 @@ export default function Home() {
                                 {match.phase}
                               </p>
 
-                              <div className="space-y-1">
-                              <div className="font-black">
-                            <BanderaEquipo equipo={match.home_team} />
-                             </div>
+                              <div className="space-y-2">
+                                <div className="font-black text-white">
+                                  <BanderaEquipo equipo={match.home_team} />
+                              </div>
 
-                              <div className="text-orange-400 font-black text-sm">
+                              <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
                                  VS
                               </div>
 
-                            <div className="font-black">
-                              <BanderaEquipo equipo={match.away_team} />
-                            </div>
-                          </div>
+                              <div className="font-black text-white">
+                                  <BanderaEquipo equipo={match.away_team} />
+                                </div>
+                              </div>
 
                               <p className="text-[#ffcc00] text-sm font-bold mt-1">
                                 🕒 {formatearFecha(match.match_date)}
