@@ -311,9 +311,6 @@ export default function Home() {
                 className="bg-zinc-800 p-4 rounded-xl flex justify-between"
               >
                 <div>
-                  <p className="font-bold">
-                    #{index + 1} {score.players?.full_name}
-                  </p>
                   <p className="text-sm text-gray-400">
                     {score.players?.casino_user}
                   </p>
