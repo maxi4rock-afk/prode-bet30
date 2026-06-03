@@ -77,6 +77,8 @@ const FLAG_CODES: Record<string, string> = {
   "Colombia": "co",
 };
 
+const TEAMS = Object.keys(FLAG_CODES).sort((a, b) => a.localeCompare(b));
+
 function BanderaEquipo({ equipo }: { equipo: string }) {
   const code = FLAG_CODES[equipo];
 
@@ -105,6 +107,8 @@ export default function Home() {
   const [scores, setScores] = useState<Score[]>([]);
   const [rankingAbierto, setRankingAbierto] = useState(false);
   const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({});
+  const [campeon, setCampeon] = useState("");
+  const [campeonGuardado, setCampeonGuardado] = useState("");
 
   useEffect(() => {
     cargarPartidos();
@@ -116,6 +120,7 @@ export default function Home() {
     if (savedPlayerId) {
       setPlayerId(savedPlayerId);
       cargarPronosticos(savedPlayerId);
+      cargarCampeon(savedPlayerId);
       setMensaje("✅ Sesión recuperada.");
     }
 
@@ -241,6 +246,56 @@ export default function Home() {
     setPredictions(loaded);
   }
 
+  async function cargarCampeon(idJugador: string) {
+    const { data, error } = await supabase
+      .from("champion_predictions")
+      .select("champion")
+      .eq("player_id", idJugador)
+      .maybeSingle();
+
+    if (error) {
+      console.log("Error cargando campeón:", error);
+      return;
+    }
+
+    if (data?.champion) {
+      setCampeon(data.champion);
+      setCampeonGuardado(data.champion);
+    }
+  }
+
+  async function guardarCampeon() {
+    if (!playerId) {
+      setMensaje("Primero ingresá con tu usuario BET30.");
+      return;
+    }
+
+    if (!campeon) {
+      setMensaje("Elegí un campeón antes de guardar.");
+      return;
+    }
+
+    const { error } = await supabase.from("champion_predictions").upsert(
+      {
+        player_id: playerId,
+        champion: campeon,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "player_id",
+      }
+    );
+
+    if (error) {
+      console.log("Error guardando campeón:", error);
+      setMensaje("Error al guardar campeón.");
+      return;
+    }
+
+    setCampeonGuardado(campeon);
+    setMensaje(`🏆 Campeón guardado: ${campeon}. Si acierta suma +15 pts.`);
+  }
+
   async function registrarse() {
     setMensaje("");
 
@@ -298,6 +353,7 @@ export default function Home() {
       setUsuario(existingPlayer.casino_user);
 
       await cargarPronosticos(existingPlayer.id);
+      await cargarCampeon(existingPlayer.id);
 
       setMensaje("✅ Bienvenido nuevamente. Tus pronósticos anteriores fueron cargados.");
       return;
@@ -325,6 +381,8 @@ export default function Home() {
     localStorage.setItem("usuario", usuarioLimpio);
 
     setUsuario(usuarioLimpio);
+    setCampeon("");
+    setCampeonGuardado("");
 
     setMensaje("✅ Registro exitoso. Ya podés cargar tus pronósticos.");
   }
@@ -428,6 +486,8 @@ export default function Home() {
     setPlayerId(null);
     setUsuario("");
     setPredictions({});
+    setCampeon("");
+    setCampeonGuardado("");
     setMensaje("Sesión cerrada.");
   }
 
@@ -496,6 +556,51 @@ export default function Home() {
           )}
         </div>
 
+        {playerId && (
+          <div className="bg-gradient-to-br from-[#1b1b25] via-[#111118] to-[#0f0f16] border border-yellow-500/60 p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_35px_rgba(255,204,0,0.16)]">
+            <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
+              Bonus especial
+            </p>
+
+            <h2 className="text-2xl md:text-3xl font-black mb-2">
+              🏆 Elegí al campeón del Mundial
+            </h2>
+
+            <p className="text-sm text-gray-300 mb-4">
+              Si acertás el campeón sumás{" "}
+              <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
+            </p>
+
+            <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
+              <select
+                value={campeon}
+                onChange={(e) => setCampeon(e.target.value)}
+                className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="">Seleccionar campeón</option>
+                {TEAMS.map((team) => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={guardarCampeon}
+                className="bg-yellow-500 text-black font-black p-3 rounded hover:bg-orange-400 transition"
+              >
+                Guardar campeón
+              </button>
+            </div>
+
+            {campeonGuardado && (
+              <p className="mt-4 text-green-400 font-bold">
+                Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
             <div className="flex items-center justify-between mb-4">
@@ -562,6 +667,7 @@ export default function Home() {
               <p>Resultado exacto: 8 pts</p>
               <p>Ganador/empate correcto: 3 pts</p>
               <p>Diferencia de gol correcta: +2 pts</p>
+              <p>Campeón correcto: +15 pts</p>
             </div>
           </div>
         </div>
@@ -627,13 +733,13 @@ export default function Home() {
                               <div className="space-y-2">
                                 <div className="font-black text-white">
                                   <BanderaEquipo equipo={match.home_team} />
-                              </div>
+                                </div>
 
-                              <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
-                                 VS
-                              </div>
+                                <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
+                                  VS
+                                </div>
 
-                              <div className="font-black text-white">
+                                <div className="font-black text-white">
                                   <BanderaEquipo equipo={match.away_team} />
                                 </div>
                               </div>
