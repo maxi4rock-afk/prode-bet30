@@ -556,52 +556,59 @@ export default function Home() {
           )}
         </div>
 
-        {playerId && (
-          <div className="bg-gradient-to-br from-[#1b1b25] via-[#111118] to-[#0f0f16] border border-yellow-500/60 p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_35px_rgba(255,204,0,0.16)]">
-            <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
-              Bonus especial
-            </p>
+        <div className="bg-gradient-to-br from-[#1b1b25] via-[#111118] to-[#0f0f16] border border-yellow-500/60 p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_35px_rgba(255,204,0,0.16)]">
+  <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
+    Bonus especial
+  </p>
 
-            <h2 className="text-2xl md:text-3xl font-black mb-2">
-              🏆 Elegí al campeón del Mundial
-            </h2>
+  <h2 className="text-2xl md:text-3xl font-black mb-2">
+    🏆 Elegí al campeón del Mundial
+  </h2>
 
-            <p className="text-sm text-gray-300 mb-4">
-              Si acertás el campeón sumás{" "}
-              <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
-            </p>
+  <p className="text-sm text-gray-300 mb-4">
+    Si acertás el campeón sumás{" "}
+    <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
+  </p>
 
-            <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
-              <select
-                value={campeon}
-                onChange={(e) => setCampeon(e.target.value)}
-                className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="">Seleccionar campeón</option>
-                {TEAMS.map((team) => (
-                  <option key={team} value={team}>
-                    {team}
-                  </option>
-                ))}
-              </select>
+  <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
+    <select
+      value={campeon}
+      onChange={(e) => setCampeon(e.target.value)}
+      className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
+    >
+      <option value="">Seleccionar campeón</option>
+      {TEAMS.map((team) => (
+        <option key={team} value={team}>
+          {team}
+        </option>
+      ))}
+    </select>
 
-              <button
-                onClick={guardarCampeon}
-                className="bg-yellow-500 text-black font-black p-3 rounded hover:bg-orange-400 transition"
-              >
-                Guardar campeón
-              </button>
-            </div>
+    <button
+      onClick={guardarCampeon}
+      disabled={!playerId}
+      className={`font-black p-3 rounded transition ${
+        playerId
+          ? "bg-yellow-500 text-black hover:bg-orange-400"
+          : "bg-gray-600 text-gray-300 cursor-not-allowed"
+      }`}
+    >
+      {playerId ? "Guardar campeón" : "Iniciá sesión para guardar"}
+    </button>
+  </div>
 
-            {campeonGuardado && (
-              <p className="mt-4 text-green-400 font-bold">
-                Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
-              </p>
-            )}
-          </div>
-        )}
+  {campeonGuardado && (
+    <p className="mt-4 text-green-400 font-bold">
+      Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
+    </p>
+  )}
 
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
+  {!playerId && (
+    <p className="mt-4 text-orange-300 font-bold">
+      Primero ingresá con tu usuario BET30 para guardar tu campeón.
+    </p>
+  )}
+</div>
           <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-black text-orange-400">🏆 Top Prode</h2>
