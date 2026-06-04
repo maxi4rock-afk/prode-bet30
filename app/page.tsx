@@ -902,9 +902,7 @@ export default function Home() {
             </div>
 
             <div className="rounded-2xl border border-yellow-500/30 bg-black/20 p-4">
-              <p className="font-black text-yellow-400 mb-3">
-                Más elegidos
-              </p>
+              <p className="font-black text-yellow-400 mb-3">Más elegidos</p>
 
               {championStats.length === 0 ? (
                 <p className="text-sm text-gray-400">
@@ -920,281 +918,286 @@ export default function Home() {
                       <div className="font-bold">
                         #{index + 1} <BanderaEquipo equipo={stat.champion} />
                       </div>
-                      <p className="text-yellow-400 font-black">
-                        {stat.count}
-                      </p>
+                      <p className="text-yellow-400 font-black">{stat.count}</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-black text-orange-400">
-                Top Prode
-              </h2>
+        {tabActiva === "grupos" && (
+          <>
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-black text-orange-400">Top Prode</h2>
 
-              <button
-                onClick={() => setRankingAbierto(true)}
-                className="text-sm bg-[#2255ee] px-3 py-2 rounded font-bold hover:bg-[#e8357a] transition"
-              >
-                Ver ranking completo
-              </button>
+                  <button
+                    onClick={() => setTabActiva("ranking")}
+                    className="text-sm bg-[#2255ee] px-3 py-2 rounded font-bold hover:bg-[#e8357a] transition"
+                  >
+                    Ver ranking completo
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {scores.length === 0 && (
+                    <p className="text-gray-400">Todavía no hay puntos cargados.</p>
+                  )}
+
+                  {scores.slice(0, 3).map((score, index) => (
+                    <div
+                      key={score.id}
+                      className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
+                    >
+                      <div>
+                        <p className="font-black text-lg">
+                          {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          {score.players?.casino_user ?? "Sin usuario"}
+                        </p>
+                      </div>
+
+                      <p className="text-[#ffcc00] font-black text-xl">
+                        {score.points} pts
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-[#111118] border border-[#e8357a] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(232,53,122,0.18)]">
+                <h2 className="text-xl font-black mb-4 text-[#e8357a]">Premios</h2>
+
+                <div className="space-y-3 text-base md:text-lg">
+                  <p>
+                    🥇 1° Puesto: <span className="font-bold text-[#ffcc00]">$700.000</span>
+                  </p>
+                  <p>
+                    🥈 2° Puesto: <span className="font-bold text-[#ffcc00]">$200.000</span>
+                  </p>
+                  <p>
+                    🥉 3° Puesto: <span className="font-bold text-[#ffcc00]">$100.000</span>
+                  </p>
+                </div>
+
+                <div className="mt-6 border-t border-white/10 pt-4 text-sm">
+                  <h3 className="font-bold mb-2 text-orange-400">Sistema de puntos</h3>
+                  <p>Resultado exacto: 8 pts</p>
+                  <p>Ganador/empate correcto: 3 pts</p>
+                  <p>Diferencia de gol correcta: +2 pts</p>
+                  <p>Campeón correcto: +15 pts</p>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              {scores.length === 0 && (
-                <p className="text-gray-400">Todavía no hay puntos cargados.</p>
-              )}
+            <div className="bg-[#111118] border border-zinc-700 p-5 md:p-6 rounded-2xl">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                <h2 className="text-2xl font-black">Fixture y pronósticos</h2>
 
-              {scores.slice(0, 3).map((score, index) => (
+                <button
+                  onClick={guardarTodosLosPronosticos}
+                  className="bg-gradient-to-r from-[#e8357a] to-[#2255ee] text-white font-black px-5 py-3 rounded hover:scale-[1.02] transition"
+                >
+                  Guardar todos
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {partidosPorGrupo.map(([grupo, partidos]) => {
+                  const abierto = gruposAbiertos[grupo] ?? false;
+
+                  return (
+                    <div
+                      key={grupo}
+                      className="border border-zinc-700 rounded-2xl overflow-hidden bg-[#0f0f16]"
+                    >
+                      <button
+                        onClick={() => toggleGrupo(grupo)}
+                        className="w-full flex items-center justify-between p-4 bg-[#1b1b25] hover:bg-[#242435] transition"
+                      >
+                        <div>
+                          <p className="text-orange-400 font-black text-lg">
+                            {abierto ? "▼" : "▶"} {grupo}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {partidos.length} partidos
+                          </p>
+                        </div>
+
+                        <span className="text-[#ffcc00] font-black">
+                          {abierto ? "Ocultar" : "Ver partidos"}
+                        </span>
+                      </button>
+
+                      {abierto && (
+                        <div className="space-y-4 p-4">
+                          {partidos.map((match) => {
+                            const bloqueado = partidoBloqueado(match);
+
+                            return (
+                              <div
+                                key={match.id}
+                                className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
+                              >
+                                <div className="md:col-span-2">
+                                  <p className="text-xs text-orange-300 uppercase font-bold">
+                                    {match.phase}
+                                  </p>
+
+                                  <div className="space-y-2">
+                                    <div className="font-black text-white">
+                                      <BanderaEquipo equipo={match.home_team} />
+                                    </div>
+
+                                    <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
+                                      VS
+                                    </div>
+
+                                    <div className="font-black text-white">
+                                      <BanderaEquipo equipo={match.away_team} />
+                                    </div>
+                                  </div>
+
+                                  <p className="text-[#ffcc00] text-sm font-bold mt-1">
+                                    🕒 {formatearFecha(match.match_date)}
+                                  </p>
+
+                                  {bloqueado && (
+                                    <p className="text-red-400 text-sm mt-1">
+                                      🔒 Pronóstico cerrado
+                                    </p>
+                                  )}
+                                </div>
+
+                                <input
+                                  disabled={bloqueado}
+                                  className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
+                                  type="number"
+                                  min="0"
+                                  placeholder="Local"
+                                  value={predictions[match.id]?.home ?? ""}
+                                  onChange={(e) =>
+                                    setPredictions((prev) => ({
+                                      ...prev,
+                                      [match.id]: {
+                                        home: e.target.value,
+                                        away: prev[match.id]?.away ?? "",
+                                      },
+                                    }))
+                                  }
+                                />
+
+                                <input
+                                  disabled={bloqueado}
+                                  className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
+                                  type="number"
+                                  min="0"
+                                  placeholder="Visitante"
+                                  value={predictions[match.id]?.away ?? ""}
+                                  onChange={(e) =>
+                                    setPredictions((prev) => ({
+                                      ...prev,
+                                      [match.id]: {
+                                        home: prev[match.id]?.home ?? "",
+                                        away: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+
+                                <button
+                                  disabled={bloqueado}
+                                  onClick={() => guardarPronostico(match.id)}
+                                  className={`font-black p-3 rounded ${
+                                    bloqueado
+                                      ? "bg-gray-600 text-white cursor-not-allowed"
+                                      : "bg-orange-500 text-black hover:bg-yellow-400"
+                                  }`}
+                                >
+                                  {bloqueado ? "🔒 Cerrado" : "Guardar"}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {tabActiva === "eliminatorias" && (
+          <div className="bg-[#111118] border border-[#2255ee]/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(34,85,238,0.18)]">
+            <p className="text-xs tracking-[0.4em] uppercase text-[#4f8cff] mb-3">
+              Eliminatorias
+            </p>
+
+            <h2 className="text-3xl font-black mb-3">🏆 Cruces eliminatorios</h2>
+
+            <p className="text-gray-300 mb-5">
+              Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                "Dieciseisavos",
+                "Octavos",
+                "Cuartos",
+                "Semifinales",
+                "Tercer puesto",
+                "Final",
+              ].map((fase) => (
+                <div
+                  key={fase}
+                  className="rounded-2xl border border-zinc-700 bg-[#0f0f16] p-5"
+                >
+                  <p className="text-xl font-black text-white">{fase}</p>
+                  <p className="mt-2 text-sm text-gray-400">
+                    Próximamente disponible.
+                  </p>
+                  <button className="mt-4 w-full rounded border border-[#2255ee] bg-[#2255ee]/10 p-3 font-black text-[#4f8cff]">
+                    🔒 Bloqueado
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tabActiva === "ranking" && (
+          <div className="bg-[#111118] border border-yellow-500/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(255,204,0,0.14)]">
+            <h2 className="text-3xl font-black text-yellow-400 mb-5">
+              📊 Ranking completo
+            </h2>
+
+            <div className="space-y-3">
+              {scores.map((score, index) => (
                 <div
                   key={score.id}
                   className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
                 >
                   <div>
-                    <p className="font-black text-lg">
-                      {medallaRanking(index)}{" "}
-                      {score.players?.full_name ?? "Sin nombre"}
+                    <p className="font-black">
+                      {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
                     </p>
                     <p className="text-sm text-gray-400">
                       {score.players?.casino_user ?? "Sin usuario"}
                     </p>
                   </div>
 
-                  <p className="text-[#ffcc00] font-black text-xl">
-                    {score.points} pts
-                  </p>
+                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="bg-[#111118] border border-[#e8357a] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(232,53,122,0.18)]">
-            <h2 className="text-xl font-black mb-4 text-[#e8357a]">
-              Premios
-            </h2>
-
-            <div className="space-y-3 text-base md:text-lg">
-              <p>
-                🥇 1° Puesto:{" "}
-                <span className="font-bold text-[#ffcc00]">$700.000</span>
-              </p>
-              <p>
-                🥈 2° Puesto:{" "}
-                <span className="font-bold text-[#ffcc00]">$200.000</span>
-              </p>
-              <p>
-                🥉 3° Puesto:{" "}
-                <span className="font-bold text-[#ffcc00]">$100.000</span>
-              </p>
-            </div>
-
-            <div className="mt-6 border-t border-white/10 pt-4 text-sm">
-              <h3 className="font-bold mb-2 text-orange-400">
-                Sistema de puntos
-              </h3>
-              <p>Resultado exacto: 8 pts</p>
-              <p>Ganador/empate correcto: 3 pts</p>
-              <p>Diferencia de gol correcta: +2 pts</p>
-              <p>Campeón correcto: +15 pts</p>
-            </div>
-          </div>
-        </div>
-
-        {tabActiva === "grupos" && (
-  <div className="bg-[#111118] border border-zinc-700 p-5 md:p-6 rounded-2xl">
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-      <h2 className="text-2xl font-black">Fixture y pronósticos</h2>
-
-      <button
-        onClick={guardarTodosLosPronosticos}
-        className="bg-gradient-to-r from-[#e8357a] to-[#2255ee] text-white font-black px-5 py-3 rounded hover:scale-[1.02] transition"
-      >
-        Guardar todos
-      </button>
-    </div>
-
-    <div className="space-y-5">
-      {partidosPorGrupo.map(([grupo, partidos]) => {
-        const abierto = gruposAbiertos[grupo] ?? false;
-
-        return (
-          <div
-            key={grupo}
-            className="border border-zinc-700 rounded-2xl overflow-hidden bg-[#0f0f16]"
-          >
-            <button
-              onClick={() => toggleGrupo(grupo)}
-              className="w-full flex items-center justify-between p-4 bg-[#1b1b25] hover:bg-[#242435] transition"
-            >
-              <div>
-                <p className="text-orange-400 font-black text-lg">
-                  {abierto ? "▼" : "▶"} {grupo}
-                </p>
-                <p className="text-sm text-gray-400">{partidos.length} partidos</p>
-              </div>
-
-              <span className="text-[#ffcc00] font-black">
-                {abierto ? "Ocultar" : "Ver partidos"}
-              </span>
-            </button>
-
-            {abierto && (
-              <div className="space-y-4 p-4">
-                {partidos.map((match) => {
-                  const bloqueado = partidoBloqueado(match);
-
-                  return (
-                    <div
-                      key={match.id}
-                      className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
-                    >
-                      <div className="md:col-span-2">
-                        <p className="text-xs text-orange-300 uppercase font-bold">
-                          {match.phase}
-                        </p>
-
-                        <div className="space-y-2">
-                          <div className="font-black text-white">
-                            <BanderaEquipo equipo={match.home_team} />
-                          </div>
-
-                          <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
-                            VS
-                          </div>
-
-                          <div className="font-black text-white">
-                            <BanderaEquipo equipo={match.away_team} />
-                          </div>
-                        </div>
-
-                        <p className="text-[#ffcc00] text-sm font-bold mt-1">
-                          🕒 {formatearFecha(match.match_date)}
-                        </p>
-
-                        {bloqueado && (
-                          <p className="text-red-400 text-sm mt-1">
-                            🔒 Pronóstico cerrado
-                          </p>
-                        )}
-                      </div>
-
-                      <input
-                        disabled={bloqueado}
-                        className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
-                        type="number"
-                        min="0"
-                        placeholder="Local"
-                        value={predictions[match.id]?.home ?? ""}
-                        onChange={(e) =>
-                          setPredictions((prev) => ({
-                            ...prev,
-                            [match.id]: {
-                              home: e.target.value,
-                              away: prev[match.id]?.away ?? "",
-                            },
-                          }))
-                        }
-                      />
-
-                      <input
-                        disabled={bloqueado}
-                        className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
-                        type="number"
-                        min="0"
-                        placeholder="Visitante"
-                        value={predictions[match.id]?.away ?? ""}
-                        onChange={(e) =>
-                          setPredictions((prev) => ({
-                            ...prev,
-                            [match.id]: {
-                              home: prev[match.id]?.home ?? "",
-                              away: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-
-                      <button
-                        disabled={bloqueado}
-                        onClick={() => guardarPronostico(match.id)}
-                        className={`font-black p-3 rounded ${
-                          bloqueado
-                            ? "bg-gray-600 text-white cursor-not-allowed"
-                            : "bg-orange-500 text-black hover:bg-yellow-400"
-                        }`}
-                      >
-                        {bloqueado ? "🔒 Cerrado" : "Guardar"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-
-{tabActiva === "eliminatorias" && (
-  <div className="bg-[#111118] border border-[#2255ee]/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(34,85,238,0.18)]">
-    <p className="text-xs tracking-[0.4em] uppercase text-[#4f8cff] mb-3">
-      Eliminatorias
-    </p>
-
-    <h2 className="text-3xl font-black mb-3">🏆 Cruces eliminatorios</h2>
-
-    <p className="text-gray-300 mb-5">
-      Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.
-    </p>
-
-    <div className="grid gap-4 md:grid-cols-3">
-      {["Dieciseisavos", "Octavos", "Cuartos"].map((fase) => (
-        <div key={fase} className="rounded-2xl border border-zinc-700 bg-[#0f0f16] p-5">
-          <p className="text-xl font-black text-white">{fase}</p>
-          <p className="mt-2 text-sm text-gray-400">Próximamente disponible.</p>
-          <button className="mt-4 w-full rounded border border-[#2255ee] bg-[#2255ee]/10 p-3 font-black text-[#4f8cff]">
-            🔒 Bloqueado
-          </button>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-
-{tabActiva === "ranking" && (
-  <div className="bg-[#111118] border border-yellow-500/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(255,204,0,0.14)]">
-    <h2 className="text-3xl font-black text-yellow-400 mb-5">📊 Ranking completo</h2>
-
-    <div className="space-y-3">
-      {scores.map((score, index) => (
-        <div
-          key={score.id}
-          className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
-        >
-          <div>
-            <p className="font-black">
-              {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
-            </p>
-            <p className="text-sm text-gray-400">
-              {score.players?.casino_user ?? "Sin usuario"}
-            </p>
-          </div>
-
-          <p className="text-[#ffcc00] font-black">{score.points} pts</p>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-</section>
+        )}
+      </section>
 
       {rankingAbierto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1220,17 +1223,14 @@ export default function Home() {
                 >
                   <div>
                     <p className="font-bold">
-                      {medallaRanking(index)}{" "}
-                      {score.players?.full_name ?? "Sin nombre"}
+                      {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
                     </p>
                     <p className="text-sm text-gray-400">
                       {score.players?.casino_user ?? "Sin usuario"}
                     </p>
                   </div>
 
-                  <p className="text-[#ffcc00] font-black">
-                    {score.points} pts
-                  </p>
+                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
                 </div>
               ))}
             </div>
@@ -1239,4 +1239,3 @@ export default function Home() {
       )}
     </main>
   );
-}
