@@ -27,54 +27,54 @@ type PredictionInput = {
 };
 
 const FLAG_CODES: Record<string, string> = {
-  "México": "mx",
-  "Sudáfrica": "za",
+  México: "mx",
+  Sudáfrica: "za",
   "Corea del Sur": "kr",
   "República Checa": "cz",
-  "Canadá": "ca",
-  "Bosnia": "ba",
+  Canadá: "ca",
+  Bosnia: "ba",
   "Estados Unidos": "us",
-  "Paraguay": "py",
-  "Qatar": "qa",
-  "Suiza": "ch",
-  "Brasil": "br",
-  "Marruecos": "ma",
-  "Haití": "ht",
-  "Escocia": "gb",
-  "Australia": "au",
-  "Turquía": "tr",
-  "Alemania": "de",
-  "Curazao": "cw",
+  Paraguay: "py",
+  Qatar: "qa",
+  Suiza: "ch",
+  Brasil: "br",
+  Marruecos: "ma",
+  Haití: "ht",
+  Escocia: "gb",
+  Australia: "au",
+  Turquía: "tr",
+  Alemania: "de",
+  Curazao: "cw",
   "Países Bajos": "nl",
-  "Japón": "jp",
+  Japón: "jp",
   "Costa de Marfil": "ci",
-  "Ecuador": "ec",
-  "Suecia": "se",
-  "Túnez": "tn",
-  "España": "es",
+  Ecuador: "ec",
+  Suecia: "se",
+  Túnez: "tn",
+  España: "es",
   "Cabo Verde": "cv",
-  "Bélgica": "be",
-  "Egipto": "eg",
+  Bélgica: "be",
+  Egipto: "eg",
   "Arabia Saudita": "sa",
-  "Uruguay": "uy",
-  "Irán": "ir",
+  Uruguay: "uy",
+  Irán: "ir",
   "Nueva Zelanda": "nz",
-  "Francia": "fr",
-  "Senegal": "sn",
-  "Irak": "iq",
-  "Noruega": "no",
-  "Argentina": "ar",
-  "Argelia": "dz",
-  "Austria": "at",
-  "Jordania": "jo",
-  "Portugal": "pt",
+  Francia: "fr",
+  Senegal: "sn",
+  Irak: "iq",
+  Noruega: "no",
+  Argentina: "ar",
+  Argelia: "dz",
+  Austria: "at",
+  Jordania: "jo",
+  Portugal: "pt",
   "RD Congo": "cd",
-  "Inglaterra": "gb",
-  "Croacia": "hr",
-  "Ghana": "gh",
-  "Panamá": "pa",
-  "Uzbekistán": "uz",
-  "Colombia": "co",
+  Inglaterra: "gb",
+  Croacia: "hr",
+  Ghana: "gh",
+  Panamá: "pa",
+  Uzbekistán: "uz",
+  Colombia: "co",
 };
 
 const TEAMS = Object.keys(FLAG_CODES).sort((a, b) => a.localeCompare(b));
@@ -557,58 +557,60 @@ export default function Home() {
         </div>
 
         <div className="bg-gradient-to-br from-[#1b1b25] via-[#111118] to-[#0f0f16] border border-yellow-500/60 p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_35px_rgba(255,204,0,0.16)]">
-  <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
-    Bonus especial
-  </p>
+          <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
+            Bonus especial
+          </p>
 
-  <h2 className="text-2xl md:text-3xl font-black mb-2">
-    🏆 Elegí al campeón del Mundial
-  </h2>
+          <h2 className="text-2xl md:text-3xl font-black mb-2">
+            🏆 Elegí al campeón del Mundial
+          </h2>
 
-  <p className="text-sm text-gray-300 mb-4">
-    Si acertás el campeón sumás{" "}
-    <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
-  </p>
+          <p className="text-sm text-gray-300 mb-4">
+            Si acertás el campeón sumás{" "}
+            <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
+          </p>
 
-  <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
-    <select
-      value={campeon}
-      onChange={(e) => setCampeon(e.target.value)}
-      className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
-    >
-      <option value="">Seleccionar campeón</option>
-      {TEAMS.map((team) => (
-        <option key={team} value={team}>
-          {team}
-        </option>
-      ))}
-    </select>
+          <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
+            <select
+              value={campeon}
+              onChange={(e) => setCampeon(e.target.value)}
+              className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
+            >
+              <option value="">Seleccionar campeón</option>
+              {TEAMS.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
 
-    <button
-      onClick={guardarCampeon}
-      disabled={!playerId}
-      className={`font-black p-3 rounded transition ${
-        playerId
-          ? "bg-yellow-500 text-black hover:bg-orange-400"
-          : "bg-gray-600 text-gray-300 cursor-not-allowed"
-      }`}
-    >
-      {playerId ? "Guardar campeón" : "Iniciá sesión para guardar"}
-    </button>
-  </div>
+            <button
+              onClick={guardarCampeon}
+              disabled={!playerId}
+              className={`font-black p-3 rounded transition ${
+                playerId
+                  ? "bg-yellow-500 text-black hover:bg-orange-400"
+                  : "bg-gray-600 text-gray-300 cursor-not-allowed"
+              }`}
+            >
+              {playerId ? "Guardar campeón" : "Iniciá sesión para guardar"}
+            </button>
+          </div>
 
-  {campeonGuardado && (
-    <p className="mt-4 text-green-400 font-bold">
-      Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
-    </p>
-  )}
+          {campeonGuardado && (
+            <p className="mt-4 text-green-400 font-bold">
+              Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
+            </p>
+          )}
 
-  {!playerId && (
-    <p className="mt-4 text-orange-300 font-bold">
-      Primero ingresá con tu usuario BET30 para guardar tu campeón.
-    </p>
-  )}
-</div>
+          {!playerId && (
+            <p className="mt-4 text-orange-300 font-bold">
+              Primero ingresá con tu usuario BET30 para guardar tu campeón.
+            </p>
+          )}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-black text-orange-400">🏆 Top Prode</h2>
@@ -620,10 +622,6 @@ export default function Home() {
                 Ver ranking completo
               </button>
             </div>
-
-            {scores.length === 0 && (
-              <p className="text-gray-400">Todavía no hay puntos cargados.</p>
-            )}
 
             <div className="space-y-3">
               {scores.slice(0, 3).map((score, index) => (
@@ -691,13 +689,9 @@ export default function Home() {
             </button>
           </div>
 
-          {matches.length === 0 && (
-            <p className="text-gray-400">No hay partidos cargados.</p>
-          )}
-
           <div className="space-y-5">
             {partidosPorGrupo.map(([grupo, partidos]) => {
-              const abierto = gruposAbiertos[grupo] ?? true;
+              const abierto = gruposAbiertos[grupo] ?? false;
 
               return (
                 <div
