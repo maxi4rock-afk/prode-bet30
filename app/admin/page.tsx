@@ -86,6 +86,11 @@ type RankingRow = {
   } | null;
 };
 
+type ChampionStat = {
+  champion: string;
+  count: number;
+};
+
 function parseGoalValue(value: string) {
   if (value === "") return null;
   return Number(value);
@@ -116,6 +121,8 @@ export default function AdminPage() {
   const [guardandoId, setGuardandoId] = useState<string | null>(null);
   const [campeonReal, setCampeonReal] = useState("");
   const [guardandoCampeon, setGuardandoCampeon] = useState(false);
+  const [championStats, setChampionStats] = useState<ChampionStat[]>([]);
+  const [reseteandoCampeones, setReseteandoCampeones] = useState(false);
 
   useEffect(() => {
     const auth = sessionStorage.getItem("admin_auth");
@@ -125,6 +132,7 @@ export default function AdminPage() {
       cargarPartidos();
       cargarRanking();
       cargarCampeonReal();
+      cargarCampeonesElegidos();
     }
   }, []);
 
@@ -189,10 +197,64 @@ async function cargarCampeonReal() {
   }
 }
 
+async function cargarCampeonesElegidos() {
+  const { data, error } = await supabase
+    .from("champion_predictions")
+    .select("champion");
+
+  if (error) {
+    console.log(error);
+    setMensaje("Error al cargar campeones elegidos.");
+    return;
+  }
+
+  const conteo: Record<string, number> = {};
+
+  (data || []).forEach((row) => {
+    if (!row.champion) return;
+    conteo[row.champion] = (conteo[row.champion] || 0) + 1;
+  });
+
+  const stats = Object.entries(conteo)
+    .map(([champion, count]) => ({ champion, count }))
+    .sort((a, b) => b.count - a.count);
+
+  setChampionStats(stats);
+}
+
+async function resetearCampeonesElegidos() {
+  const confirmar = confirm(
+    "¿Seguro que querés borrar todos los campeones elegidos por los usuarios?"
+  );
+
+  if (!confirmar) return;
+
+  setReseteandoCampeones(true);
+  setMensaje("Reseteando campeones elegidos...");
+
+  const { error } = await supabase
+    .from("champion_predictions")
+    .delete()
+    .neq("player_id", "00000000-0000-0000-0000-000000000000");
+
+  setReseteandoCampeones(false);
+
+  if (error) {
+    console.log(error);
+    setMensaje("Error al resetear campeones elegidos.");
+    return;
+  }
+
+  setChampionStats([]);
+  setMensaje("✅ Campeones elegidos reseteados. El bloque 'Más elegidos' queda en cero.");
+}
+
   function entrarAdmin() {
     setAdminAutorizado(true);
     cargarPartidos();
     cargarRanking();
+    cargarCampeonReal();
+    cargarCampeonesElegidos();
   }
 
   async function guardarResultado(match: Match) {
@@ -342,6 +404,7 @@ async function guardarCampeonReal() {
   }
 
   setMensaje("🏆 Campeón real guardado.");
+  await cargarCampeonesElegidos();
 }
   function calcularPuntos(pred: Prediction, match: Match) {
     if (match.real_home_goals === null || match.real_away_goals === null) {
@@ -500,6 +563,14 @@ const campeonOficial = config?.champion;
             </button>
 
             <button
+              onClick={resetearCampeonesElegidos}
+              disabled={reseteandoCampeones}
+              className="rounded bg-purple-700 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-600"
+            >
+              {reseteandoCampeones ? "Reseteando..." : "Reset campeones"}
+            </button>
+
+            <button
               onClick={calcularRanking}
               disabled={calculando}
               className="rounded bg-yellow-500 px-5 py-3 font-bold text-black disabled:cursor-not-allowed disabled:bg-gray-600 disabled:text-white"
@@ -535,6 +606,47 @@ const campeonOficial = config?.champion;
       Campeón configurado: {campeonReal}
     </p>
   )}
+</div>
+
+<div className="mb-6 rounded bg-zinc-900 p-5 border border-purple-500">
+  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h2 className="text-2xl font-bold text-purple-300">
+        ⭐ Campeones elegidos por usuarios
+      </h2>
+      <p className="mt-1 text-sm text-gray-400">
+        Esto controla el bloque público de “Más elegidos”.
+      </p>
+    </div>
+
+    <button
+      onClick={resetearCampeonesElegidos}
+      disabled={reseteandoCampeones}
+      className="rounded bg-purple-700 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-600"
+    >
+      {reseteandoCampeones ? "Reseteando..." : "Resetear campeones elegidos"}
+    </button>
+  </div>
+
+  <div className="mt-4 grid gap-3 md:grid-cols-3">
+    {championStats.length === 0 ? (
+      <p className="text-sm text-gray-400">
+        Todavía no hay campeones elegidos.
+      </p>
+    ) : (
+      championStats.map((stat, index) => (
+        <div
+          key={stat.champion}
+          className="flex items-center justify-between rounded bg-black/40 p-3 border border-zinc-700"
+        >
+          <p className="font-bold">
+            #{index + 1} {stat.champion}
+          </p>
+          <p className="font-black text-yellow-400">{stat.count}</p>
+        </div>
+      ))
+    )}
+  </div>
 </div>
         {mensaje && (
           <p className="mb-4 rounded bg-zinc-900 p-3 font-bold text-green-400">

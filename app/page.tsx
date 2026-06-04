@@ -31,6 +31,7 @@ type ChampionStat = {
   count: number;
 };
 
+
 const WORLD_CUP_TROPHY_IMAGE = "/trophy-hero.png";
 const WORLD_CUP_2030_LOGO = "/worldcup2030-logo.png";
 const BET30_LOGO = "/bet30-logo.png";
@@ -154,6 +155,7 @@ function cuentaRegresiva(fecha: string | null, ahora: number) {
 
 export default function Home() {
   const [usuario, setUsuario] = useState("");
+  const [nombreVisible, setNombreVisible] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -174,6 +176,7 @@ export default function Home() {
 
     const savedPlayerId = localStorage.getItem("playerId");
     const savedUsuario = localStorage.getItem("usuario");
+    const savedNombreVisible = localStorage.getItem("nombreVisible");
 
     if (savedPlayerId) {
       setPlayerId(savedPlayerId);
@@ -183,6 +186,7 @@ export default function Home() {
     }
 
     if (savedUsuario) setUsuario(savedUsuario);
+    if (savedNombreVisible) setNombreVisible(savedNombreVisible);
   }, []);
 
   useEffect(() => {
@@ -427,6 +431,13 @@ export default function Home() {
       return;
     }
 
+    const nombreRanking = nombreVisible.trim();
+
+    if (!nombreRanking) {
+      setMensaje("Ingresá un nombre o apodo para mostrar en el ranking.");
+      return;
+    }
+
     const { data: allowedUsers, error: authError } = await supabase
       .from("allowed_players")
       .select("casino_user");
@@ -461,13 +472,27 @@ export default function Home() {
     });
 
     if (existingPlayer) {
+      const { error: updateError } = await supabase
+        .from("players")
+        .update({ full_name: nombreRanking })
+        .eq("id", existingPlayer.id);
+
+      if (updateError) {
+        console.log("Error actualizando apodo:", updateError);
+        setMensaje("Error al actualizar tu apodo.");
+        return;
+      }
+
       setPlayerId(existingPlayer.id);
 
       localStorage.setItem("playerId", existingPlayer.id);
       localStorage.setItem("usuario", existingPlayer.casino_user);
+      localStorage.setItem("nombreVisible", nombreRanking);
 
       setUsuario(existingPlayer.casino_user);
+      setNombreVisible(nombreRanking);
 
+      await cargarRanking();
       await cargarPronosticos(existingPlayer.id);
       await cargarCampeon(existingPlayer.id);
 
@@ -478,7 +503,7 @@ export default function Home() {
     const { data, error } = await supabase
       .from("players")
       .insert({
-        full_name: usuarioLimpio,
+        full_name: nombreRanking,
         casino_user: usuarioLimpio,
         paid: true,
       })
@@ -495,8 +520,11 @@ export default function Home() {
 
     localStorage.setItem("playerId", data.id);
     localStorage.setItem("usuario", usuarioLimpio);
+    localStorage.setItem("nombreVisible", nombreRanking);
 
     setUsuario(usuarioLimpio);
+    setNombreVisible(nombreRanking);
+    await cargarRanking();
     setCampeon("");
     setCampeonGuardado("");
 
@@ -599,8 +627,10 @@ export default function Home() {
   function cerrarSesion() {
     localStorage.removeItem("playerId");
     localStorage.removeItem("usuario");
+    localStorage.removeItem("nombreVisible");
     setPlayerId(null);
     setUsuario("");
+    setNombreVisible("");
     setPredictions({});
     setCampeon("");
     setCampeonGuardado("");
@@ -802,13 +832,52 @@ export default function Home() {
   </div>
 )}
 
+<div className="mb-6 rounded-2xl border border-orange-500/40 bg-gradient-to-r from-[#1b1b25] to-[#10101a] p-5 md:p-6 shadow-[0_0_25px_rgba(249,115,22,0.15)]">
+  <h2 className="text-2xl font-black text-orange-400 mb-2">
+    🎁 ¿Querés participar?
+  </h2>
+
+  <p className="text-gray-300 mb-5">
+    Si todavía no tenés cuenta, hablá con uno de nuestros cajeros y empezá a competir en el Prode Mundial BET30.
+  </p>
+
+  <div className="grid md:grid-cols-3 gap-3">
+    <a
+      href="https://wa.link/3bu64g"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rounded-xl bg-green-600 hover:bg-green-500 p-4 text-center font-black transition"
+    >
+      🟢 Línea Verde
+    </a>
+
+    <a
+      href="https://wa.link/krk6kw"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rounded-xl bg-purple-600 hover:bg-purple-500 p-4 text-center font-black transition"
+    >
+      🟣 Línea Violeta
+    </a>
+
+    <a
+      href="https://wa.link/g578ir"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rounded-xl bg-red-600 hover:bg-red-500 p-4 text-center font-black transition"
+    >
+      🔴 Línea Roja
+    </a>
+  </div>
+</div>
+
 <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
   <h2 className="text-xl font-black mb-2">Ingresar al Prode</h2>
 
   {!playerId ? (
     <div className="space-y-3">
       <p className="text-sm text-gray-400">
-        Ingresá tu usuario BET30 para acceder al Prode.
+        Ingresá tu usuario BET30 para validar el acceso y un nombre o apodo para aparecer en el ranking.
       </p>
 
       <input
@@ -816,6 +885,13 @@ export default function Home() {
         placeholder="Usuario BET30"
         value={usuario}
         onChange={(e) => setUsuario(e.target.value)}
+      />
+
+      <input
+        className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
+        placeholder="Nombre o apodo para el ranking"
+        value={nombreVisible}
+        onChange={(e) => setNombreVisible(e.target.value)}
       />
 
       <button
@@ -828,7 +904,11 @@ export default function Home() {
   ) : (
     <div className="text-center">
       <p className="text-green-400 font-bold">
-        ✅ Conectado como {usuario}
+        ✅ Conectado como {nombreVisible || "Jugador"}
+      </p>
+
+      <p className="text-xs text-gray-500 mt-1">
+        Usuario BET30 guardado de forma privada.
       </p>
 
       <button
@@ -954,9 +1034,6 @@ export default function Home() {
                       <div>
                         <p className="font-black text-lg">
                           {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          {score.players?.casino_user ?? "Sin usuario"}
                         </p>
                       </div>
 
@@ -1186,9 +1263,6 @@ export default function Home() {
                     <p className="font-black">
                       {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
                     </p>
-                    <p className="text-sm text-gray-400">
-                      {score.players?.casino_user ?? "Sin usuario"}
-                    </p>
                   </div>
 
                   <p className="text-[#ffcc00] font-black">{score.points} pts</p>
@@ -1224,9 +1298,6 @@ export default function Home() {
                   <div>
                     <p className="font-bold">
                       {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {score.players?.casino_user ?? "Sin usuario"}
                     </p>
                   </div>
 
