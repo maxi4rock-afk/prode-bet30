@@ -114,6 +114,8 @@ export default function AdminPage() {
   const [mensaje, setMensaje] = useState("");
   const [calculando, setCalculando] = useState(false);
   const [guardandoId, setGuardandoId] = useState<string | null>(null);
+  const [campeonReal, setCampeonReal] = useState("");
+  const [guardandoCampeon, setGuardandoCampeon] = useState(false);
 
   useEffect(() => {
     const auth = sessionStorage.getItem("admin_auth");
@@ -122,6 +124,7 @@ export default function AdminPage() {
       setAdminAutorizado(true);
       cargarPartidos();
       cargarRanking();
+      cargarCampeonReal();
     }
   }, []);
 
@@ -163,6 +166,17 @@ export default function AdminPage() {
       setMensaje("Error al cargar ranking.");
       return;
     }
+    async function cargarCampeonReal() {
+  const { data } = await supabase
+    .from("tournament_config")
+    .select("champion")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (data?.champion) {
+    setCampeonReal(data.champion);
+  }
+}
 
     const formatted = (data || []).map((row: any) => ({
       id: row.id,
@@ -307,7 +321,27 @@ export default function AdminPage() {
     setMensaje("✅ Ranking reseteado a 0.");
     await cargarRanking();
   }
+async function guardarCampeonReal() {
+  setGuardandoCampeon(true);
 
+  const { error } = await supabase
+    .from("tournament_config")
+    .update({
+      champion: campeonReal,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  setGuardandoCampeon(false);
+
+  if (error) {
+    console.log(error);
+    setMensaje("Error al guardar campeón.");
+    return;
+  }
+
+  setMensaje("🏆 Campeón real guardado.");
+}
   function calcularPuntos(pred: Prediction, match: Match) {
     if (match.real_home_goals === null || match.real_away_goals === null) {
       return 0;
@@ -368,7 +402,13 @@ export default function AdminPage() {
     }
 
     const puntosPorJugador: Record<string, number> = {};
+    const { data: config } = await supabase
+    .from("tournament_config")
+    .select("champion")
+   .eq("id", 1)
+   .single();
 
+const campeonOficial = config?.champion;
     (predictionsData || []).forEach((pred) => {
       const match = (matchesData || []).find((m) => m.id === pred.match_id);
       if (!match) return;
@@ -378,7 +418,18 @@ export default function AdminPage() {
       puntosPorJugador[pred.player_id] =
         (puntosPorJugador[pred.player_id] || 0) + puntos;
     });
+  if (campeonOficial) {
+  const { data: championPredictions } = await supabase
+    .from("champion_predictions")
+    .select("player_id, champion");
 
+  (championPredictions || []).forEach((pred) => {
+    if (pred.champion === campeonOficial) {
+      puntosPorJugador[pred.player_id] =
+        (puntosPorJugador[pred.player_id] || 0) + 15;
+    }
+  });
+}
     const rows = Object.entries(puntosPorJugador).map(([player_id, points]) => ({
       player_id,
       points,
@@ -456,7 +507,34 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+<div className="mb-6 rounded bg-zinc-900 p-5 border border-yellow-500">
+  <h2 className="text-2xl font-bold text-yellow-400 mb-3">
+    🏆 Campeón Mundial
+  </h2>
 
+  <div className="flex gap-3 flex-wrap">
+    <input
+      value={campeonReal}
+      onChange={(e) => setCampeonReal(e.target.value)}
+      placeholder="Ej: Argentina"
+      className="rounded bg-white p-3 text-black flex-1 min-w-[250px]"
+    />
+
+    <button
+      onClick={guardarCampeonReal}
+      disabled={guardandoCampeon}
+      className="rounded bg-yellow-500 px-5 py-3 font-bold text-black"
+    >
+      {guardandoCampeon ? "Guardando..." : "Guardar campeón"}
+    </button>
+  </div>
+
+  {campeonReal && (
+    <p className="mt-3 text-green-400 font-bold">
+      Campeón configurado: {campeonReal}
+    </p>
+  )}
+</div>
         {mensaje && (
           <p className="mb-4 rounded bg-zinc-900 p-3 font-bold text-green-400">
             {mensaje}
