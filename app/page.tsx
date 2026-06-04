@@ -31,8 +31,9 @@ type ChampionStat = {
   count: number;
 };
 
-const WORLD_CUP_TROPHY_IMAGE =
-  "https://commons.wikimedia.org/wiki/Special:FilePath/FIFA%20World%20Cup%20Trophy%20%28Ank%20Kumar%2C%20Infosys%20Limited%29%2001.jpg";
+const WORLD_CUP_TROPHY_IMAGE = "/trophy-hero.png";
+const WORLD_CUP_2030_LOGO = "/worldcup2030-logo.png";
+const BET30_LOGO = "/bet30-logo.png";
 
 const FLAG_CODES: Record<string, string> = {
   México: "mx",
@@ -607,68 +608,137 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#08080c] text-white p-4 md:p-6">
       <section className="max-w-6xl mx-auto">
-        <div className="relative overflow-hidden rounded-[2rem] border border-[#7c3aed]/70 bg-[#0b0b0f] p-5 md:p-8 mb-6 shadow-[0_0_40px_rgba(124,58,237,0.22)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(232,53,122,0.25),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(34,85,238,0.22),transparent_35%)]" />
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+        <div className="relative overflow-hidden rounded-[2rem] border border-[#7c3aed]/70 bg-[#050508] p-5 md:p-8 mb-6 shadow-[0_0_45px_rgba(124,58,237,0.24)]">
+  {/* fondo premium */}
+  <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(232,53,122,0.24),transparent_34%),radial-gradient(circle_at_88%_18%,rgba(255,204,0,0.13),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(34,85,238,0.24),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.03),transparent_35%,rgba(124,58,237,0.08))]" />
 
-          <div className="relative z-10 grid gap-6 md:grid-cols-[1fr_260px] items-center">
-            <div>
-              <p className="text-xs tracking-[0.45em] uppercase text-orange-400 mb-3">
-                Prime Rock x BET30
+  {/* textura/luces */}
+  <div className="absolute inset-0 opacity-[0.12] bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:48px_48px]" />
+  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#2255ee] to-transparent" />
+
+  {/* logo 2030 traslúcido atrás */}
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <img
+      src={WORLD_CUP_2030_LOGO}
+      alt="Emblema Mundial 2030"
+      className="w-[92%] max-w-[920px] opacity-[0.075] object-contain blur-[0.3px] scale-110"
+    />
+  </div>
+
+  {/* brillos decorativos */}
+  <div className="absolute -left-24 top-20 h-56 w-56 rounded-full bg-[#e8357a]/20 blur-3xl" />
+  <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-[#2255ee]/20 blur-3xl" />
+
+  <div className="relative z-10 grid gap-8 md:grid-cols-[1.05fr_430px] items-center">
+    {/* izquierda */}
+    <div>
+      <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 backdrop-blur-md">
+        <span className="text-[10px] md:text-xs tracking-[0.35em] uppercase text-orange-300">
+          Prime Rock x
+        </span>
+
+        <img
+          src={BET30_LOGO}
+          alt="BET30"
+          className="h-6 md:h-7 w-auto object-contain"
+        />
+      </div>
+
+      <h1 className="text-5xl md:text-7xl font-black leading-[0.92] mb-4 tracking-tight">
+        Prode
+        <br />
+        Mundial
+        <br />
+        <span className="text-[#e8357a] drop-shadow-[0_0_20px_rgba(232,53,122,0.35)]">
+          BET
+        </span>
+        <span className="text-[#2255ee] drop-shadow-[0_0_20px_rgba(34,85,238,0.45)]">
+          30
+        </span>
+      </h1>
+
+      <p className="text-gray-300 text-base md:text-lg max-w-xl">
+        Viví el Mundial con pronósticos, ranking en vivo, premios y bonus por
+        campeón elegido.
+      </p>
+
+      <p className="mt-3 text-gray-300">
+        Participá con una carga mínima de{" "}
+        <span className="text-orange-400 font-black">$25.000</span>
+      </p>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 backdrop-blur-sm">
+          <p className="text-xs text-gray-400">Partidos</p>
+          <p className="text-2xl font-black text-orange-400">
+            {matches.length}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#2255ee]/40 bg-[#2255ee]/10 px-4 py-3 backdrop-blur-sm">
+          <p className="text-xs text-gray-400">Cerrados</p>
+          <p className="text-2xl font-black text-[#7aa2ff]">
+            {partidosBloqueados}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 backdrop-blur-sm">
+          <p className="text-xs text-gray-400">Tus pronósticos</p>
+          <p className="text-2xl font-black text-yellow-400">
+            {pronosticosCargados}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#e8357a]/40 bg-[#e8357a]/10 px-4 py-3 backdrop-blur-sm">
+          <p className="text-xs text-gray-400">Líder</p>
+          <p className="text-2xl font-black text-[#e8357a]">
+            {scores[0]?.points ?? 0} pts
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* derecha */}
+    <div className="relative flex justify-center md:justify-end">
+      <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle,rgba(255,196,0,0.24),transparent_58%)] blur-2xl" />
+
+      <div className="relative w-full max-w-[410px] rounded-[2rem] border border-white/10 bg-white/[0.055] p-3 backdrop-blur-md shadow-[0_0_38px_rgba(255,196,0,0.14)]">
+        <div className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40">
+          <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-black/5 to-black/20" />
+
+          <img
+            src={WORLD_CUP_TROPHY_IMAGE}
+            alt="Copa del Mundo BET30"
+            className="h-[360px] md:h-[430px] w-full object-cover"
+          />
+
+          <div className="absolute left-4 top-4 z-20 rounded-full border border-yellow-500/30 bg-black/45 px-3 py-2 backdrop-blur-md">
+            <p className="text-[10px] tracking-[0.28em] uppercase text-yellow-300">
+              Edición premium
+            </p>
+          </div>
+
+          <div className="absolute left-4 bottom-4 right-4 z-20">
+            <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-md shadow-[0_0_25px_rgba(0,0,0,0.35)]">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-orange-300">
+                Prode oficial
               </p>
 
-              <h1 className="text-5xl md:text-7xl font-black leading-none mb-3">
-                Prode Mundial{" "}
-                <span className="text-[#e8357a]">BET</span>
-                <span className="text-[#2255ee]">30</span>
-              </h1>
-
-              <p className="text-gray-300 text-base md:text-lg">
-                Mundial 2026 · Estados Unidos · México · Canadá
+              <p className="mt-1 text-2xl font-black text-white">
+                Camino al campeón
               </p>
 
-              <p className="mt-3 text-gray-300">
-                Participá con una carga mínima de{" "}
-                <span className="text-orange-400 font-bold">$25.000</span>
+              <p className="text-sm text-gray-300">
+                Pronosticá, competí y peleá por el top del ranking.
               </p>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3">
-                  <p className="text-xs text-gray-400">Partidos</p>
-                  <p className="text-2xl font-black text-orange-400">{matches.length}</p>
-                </div>
-
-                <div className="rounded-xl border border-[#2255ee]/40 bg-[#2255ee]/10 px-4 py-3">
-                  <p className="text-xs text-gray-400">Cerrados</p>
-                  <p className="text-2xl font-black text-[#7aa2ff]">{partidosBloqueados}</p>
-                </div>
-
-                <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
-                  <p className="text-xs text-gray-400">Tus pronósticos</p>
-                  <p className="text-2xl font-black text-yellow-400">{pronosticosCargados}</p>
-                </div>
-
-                <div className="rounded-xl border border-[#e8357a]/40 bg-[#e8357a]/10 px-4 py-3">
-                  <p className="text-xs text-gray-400">Líder</p>
-                  <p className="text-2xl font-black text-[#e8357a]">
-                    {scores[0]?.points ?? 0} pts
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 blur-3xl bg-yellow-500/30 rounded-full" />
-                <img
-                  src={WORLD_CUP_TROPHY_IMAGE}
-                  alt="Copa del Mundo"
-                  className="relative h-56 md:h-72 w-auto object-contain drop-shadow-[0_0_30px_rgba(255,204,0,0.45)]"
-                />
-              </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
 
         {proximoPartido && (
           <div className="mb-6 rounded-2xl border border-orange-500/60 bg-gradient-to-r from-[#1b1b25] to-[#10101a] p-5 shadow-[0_0_26px_rgba(249,115,22,0.16)]">
