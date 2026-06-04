@@ -26,6 +26,14 @@ type PredictionInput = {
   away: string;
 };
 
+type ChampionStat = {
+  champion: string;
+  count: number;
+};
+
+const WORLD_CUP_TROPHY_IMAGE =
+  "https://commons.wikimedia.org/wiki/Special:FilePath/FIFA%20World%20Cup%20Trophy%20%28Ank%20Kumar%2C%20Infosys%20Limited%29%2001.jpg";
+
 const FLAG_CODES: Record<string, string> = {
   México: "mx",
   Sudáfrica: "za",
@@ -98,6 +106,50 @@ function BanderaEquipo({ equipo }: { equipo: string }) {
   );
 }
 
+function medallaRanking(index: number) {
+  if (index === 0) return "🥇";
+  if (index === 1) return "🥈";
+  if (index === 2) return "🥉";
+  return `#${index + 1}`;
+}
+
+function estiloRanking(index: number) {
+  if (index === 0) {
+    return "border-yellow-400/80 shadow-[0_0_24px_rgba(255,204,0,0.20)] bg-gradient-to-r from-yellow-500/10 to-[#1b1b25]";
+  }
+
+  if (index === 1) {
+    return "border-zinc-300/60 shadow-[0_0_20px_rgba(255,255,255,0.10)] bg-gradient-to-r from-white/10 to-[#1b1b25]";
+  }
+
+  if (index === 2) {
+    return "border-orange-500/70 shadow-[0_0_20px_rgba(249,115,22,0.15)] bg-gradient-to-r from-orange-500/10 to-[#1b1b25]";
+  }
+
+  return "border-zinc-700 bg-[#1b1b25]";
+}
+
+function cuentaRegresiva(fecha: string | null, ahora: number) {
+  if (!fecha) return "Fecha pendiente";
+
+  const target = new Date(fecha).getTime();
+
+  if (isNaN(target)) return "Fecha inválida";
+
+  const diff = target - ahora;
+
+  if (diff <= 0) return "Ya empezó";
+
+  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const horas = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutos = Math.floor((diff / (1000 * 60)) % 60);
+
+  if (dias > 0) return `${dias}d ${horas}h ${minutos}m`;
+  if (horas > 0) return `${horas}h ${minutos}m`;
+
+  return `${minutos}m`;
+}
+
 export default function Home() {
   const [usuario, setUsuario] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -109,10 +161,13 @@ export default function Home() {
   const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({});
   const [campeon, setCampeon] = useState("");
   const [campeonGuardado, setCampeonGuardado] = useState("");
+  const [championStats, setChampionStats] = useState<ChampionStat[]>([]);
+  const [ahora, setAhora] = useState(Date.now());
 
   useEffect(() => {
     cargarPartidos();
     cargarRanking();
+    cargarCampeonesElegidos();
 
     const savedPlayerId = localStorage.getItem("playerId");
     const savedUsuario = localStorage.getItem("usuario");
@@ -127,6 +182,14 @@ export default function Home() {
     if (savedUsuario) setUsuario(savedUsuario);
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAhora(Date.now());
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const partidosPorGrupo = useMemo(() => {
     const grupos: Record<string, Match[]> = {};
 
@@ -138,10 +201,34 @@ export default function Home() {
     return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b));
   }, [matches]);
 
+  const proximoPartido = useMemo(() => {
+    return (
+      matches
+        .filter((match) => match.match_date)
+        .filter((match) => {
+          const fecha = new Date(match.match_date as string).getTime();
+          return !isNaN(fecha) && fecha > ahora;
+        })
+        .sort((a, b) => {
+          const fechaA = new Date(a.match_date as string).getTime();
+          const fechaB = new Date(b.match_date as string).getTime();
+          return fechaA - fechaB;
+        })[0] ?? null
+    );
+  }, [matches, ahora]);
+
+  const partidosBloqueados = useMemo(() => {
+    return matches.filter((match) => partidoBloqueado(match)).length;
+  }, [matches, ahora]);
+
+  const pronosticosCargados = useMemo(() => {
+    return Object.values(predictions).filter((pred) => pred.home !== "" && pred.away !== "").length;
+  }, [predictions]);
+
   function toggleGrupo(grupo: string) {
     setGruposAbiertos((prev) => ({
       ...prev,
-      [grupo]: !(prev[grupo] ?? true),
+      [grupo]: !(prev[grupo] ?? false),
     }));
   }
 
@@ -223,6 +310,31 @@ export default function Home() {
     setScores(formattedScores);
   }
 
+  async function cargarCampeonesElegidos() {
+    const { data, error } = await supabase
+      .from("champion_predictions")
+      .select("champion");
+
+    if (error) {
+      console.log("Error cargando campeones elegidos:", error);
+      return;
+    }
+
+    const conteo: Record<string, number> = {};
+
+    (data || []).forEach((row) => {
+      if (!row.champion) return;
+      conteo[row.champion] = (conteo[row.champion] || 0) + 1;
+    });
+
+    const stats = Object.entries(conteo)
+      .map(([champion, count]) => ({ champion, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    setChampionStats(stats);
+  }
+
   async function cargarPronosticos(idJugador: string) {
     const { data, error } = await supabase
       .from("predictions")
@@ -293,6 +405,7 @@ export default function Home() {
     }
 
     setCampeonGuardado(campeon);
+    await cargarCampeonesElegidos();
     setMensaje(`🏆 Campeón guardado: ${campeon}. Si acierta suma +15 pts.`);
   }
 
@@ -494,22 +607,99 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#08080c] text-white p-4 md:p-6">
       <section className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <p className="text-xs tracking-[0.45em] uppercase text-orange-400 mb-3">
-            Prime Rock x BET30
-          </p>
+        <div className="relative overflow-hidden rounded-[2rem] border border-[#7c3aed]/70 bg-[#0b0b0f] p-5 md:p-8 mb-6 shadow-[0_0_40px_rgba(124,58,237,0.22)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(232,53,122,0.25),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(34,85,238,0.22),transparent_35%)]" />
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
 
-          <h1 className="text-4xl md:text-6xl font-black mb-3">
-            🏆 Prode Mundial{" "}
-            <span className="text-[#e8357a]">BET</span>
-            <span className="text-[#2255ee]">30</span>
-          </h1>
+          <div className="relative z-10 grid gap-6 md:grid-cols-[1fr_260px] items-center">
+            <div>
+              <p className="text-xs tracking-[0.45em] uppercase text-orange-400 mb-3">
+                Prime Rock x BET30
+              </p>
 
-          <p className="text-gray-300">
-            Participá con una carga mínima de{" "}
-            <span className="text-orange-400 font-bold">$25.000</span>
-          </p>
+              <h1 className="text-5xl md:text-7xl font-black leading-none mb-3">
+                Prode Mundial{" "}
+                <span className="text-[#e8357a]">BET</span>
+                <span className="text-[#2255ee]">30</span>
+              </h1>
+
+              <p className="text-gray-300 text-base md:text-lg">
+                Mundial 2026 · Estados Unidos · México · Canadá
+              </p>
+
+              <p className="mt-3 text-gray-300">
+                Participá con una carga mínima de{" "}
+                <span className="text-orange-400 font-bold">$25.000</span>
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3">
+                  <p className="text-xs text-gray-400">Partidos</p>
+                  <p className="text-2xl font-black text-orange-400">{matches.length}</p>
+                </div>
+
+                <div className="rounded-xl border border-[#2255ee]/40 bg-[#2255ee]/10 px-4 py-3">
+                  <p className="text-xs text-gray-400">Cerrados</p>
+                  <p className="text-2xl font-black text-[#7aa2ff]">{partidosBloqueados}</p>
+                </div>
+
+                <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
+                  <p className="text-xs text-gray-400">Tus pronósticos</p>
+                  <p className="text-2xl font-black text-yellow-400">{pronosticosCargados}</p>
+                </div>
+
+                <div className="rounded-xl border border-[#e8357a]/40 bg-[#e8357a]/10 px-4 py-3">
+                  <p className="text-xs text-gray-400">Líder</p>
+                  <p className="text-2xl font-black text-[#e8357a]">
+                    {scores[0]?.points ?? 0} pts
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 blur-3xl bg-yellow-500/30 rounded-full" />
+                <img
+                  src={WORLD_CUP_TROPHY_IMAGE}
+                  alt="Copa del Mundo"
+                  className="relative h-56 md:h-72 w-auto object-contain drop-shadow-[0_0_30px_rgba(255,204,0,0.45)]"
+                />
+              </div>
+            </div>
+          </div>
         </div>
+
+        {proximoPartido && (
+          <div className="mb-6 rounded-2xl border border-orange-500/60 bg-gradient-to-r from-[#1b1b25] to-[#10101a] p-5 shadow-[0_0_26px_rgba(249,115,22,0.16)]">
+            <div className="grid gap-4 md:grid-cols-[1fr_220px] md:items-center">
+              <div>
+                <p className="text-xs tracking-[0.35em] uppercase text-orange-400 mb-2">
+                  Próximo partido
+                </p>
+
+                <div className="flex flex-col gap-2 text-xl md:text-2xl font-black">
+                  <BanderaEquipo equipo={proximoPartido.home_team} />
+                  <span className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
+                    VS
+                  </span>
+                  <BanderaEquipo equipo={proximoPartido.away_team} />
+                </div>
+
+                <p className="mt-3 text-yellow-400 font-bold">
+                  🕒 {formatearFecha(proximoPartido.match_date)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-yellow-500/50 bg-yellow-500/10 p-4 text-center">
+                <p className="text-sm text-gray-300">Cuenta regresiva</p>
+                <p className="text-3xl font-black text-yellow-400">
+                  {cuentaRegresiva(proximoPartido.match_date, ahora)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
           <h2 className="text-xl font-black mb-2">Ingresar al Prode</h2>
@@ -557,63 +747,97 @@ export default function Home() {
         </div>
 
         <div className="bg-gradient-to-br from-[#1b1b25] via-[#111118] to-[#0f0f16] border border-yellow-500/60 p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_35px_rgba(255,204,0,0.16)]">
-          <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
-            Bonus especial
-          </p>
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            <div>
+              <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
+                Bonus especial
+              </p>
 
-          <h2 className="text-2xl md:text-3xl font-black mb-2">
-            🏆 Elegí al campeón del Mundial
-          </h2>
+              <h2 className="text-2xl md:text-3xl font-black mb-2">
+                Elegí al campeón del Mundial
+              </h2>
 
-          <p className="text-sm text-gray-300 mb-4">
-            Si acertás el campeón sumás{" "}
-            <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
-          </p>
+              <p className="text-sm text-gray-300 mb-4">
+                Si acertás el campeón sumás{" "}
+                <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
+              </p>
 
-          <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
-            <select
-              value={campeon}
-              onChange={(e) => setCampeon(e.target.value)}
-              className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
-            >
-              <option value="">Seleccionar campeón</option>
-              {TEAMS.map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
+              <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
+                <select
+                  value={campeon}
+                  onChange={(e) => setCampeon(e.target.value)}
+                  className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
+                >
+                  <option value="">Seleccionar campeón</option>
+                  {TEAMS.map((team) => (
+                    <option key={team} value={team}>
+                      {team}
+                    </option>
+                  ))}
+                </select>
 
-            <button
-              onClick={guardarCampeon}
-              disabled={!playerId}
-              className={`font-black p-3 rounded transition ${
-                playerId
-                  ? "bg-yellow-500 text-black hover:bg-orange-400"
-                  : "bg-gray-600 text-gray-300 cursor-not-allowed"
-              }`}
-            >
-              {playerId ? "Guardar campeón" : "Iniciá sesión para guardar"}
-            </button>
+                <button
+                  onClick={guardarCampeon}
+                  disabled={!playerId}
+                  className={`font-black p-3 rounded transition ${
+                    playerId
+                      ? "bg-yellow-500 text-black hover:bg-orange-400"
+                      : "bg-gray-600 text-gray-300 cursor-not-allowed"
+                  }`}
+                >
+                  {playerId ? "Guardar campeón" : "Iniciá sesión para guardar"}
+                </button>
+              </div>
+
+              {campeonGuardado && (
+                <p className="mt-4 text-green-400 font-bold">
+                  Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
+                </p>
+              )}
+
+              {!playerId && (
+                <p className="mt-4 text-orange-300 font-bold">
+                  Primero ingresá con tu usuario BET30 para guardar tu campeón.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-yellow-500/30 bg-black/20 p-4">
+              <p className="font-black text-yellow-400 mb-3">
+                Más elegidos
+              </p>
+
+              {championStats.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  Todavía no hay campeones elegidos.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {championStats.map((stat, index) => (
+                    <div
+                      key={stat.champion}
+                      className="flex items-center justify-between rounded-xl border border-zinc-700 bg-[#111118] p-3"
+                    >
+                      <div className="font-bold">
+                        #{index + 1} <BanderaEquipo equipo={stat.champion} />
+                      </div>
+                      <p className="text-yellow-400 font-black">
+                        {stat.count}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-
-          {campeonGuardado && (
-            <p className="mt-4 text-green-400 font-bold">
-              Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
-            </p>
-          )}
-
-          {!playerId && (
-            <p className="mt-4 text-orange-300 font-bold">
-              Primero ingresá con tu usuario BET30 para guardar tu campeón.
-            </p>
-          )}
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-black text-orange-400">🏆 Top Prode</h2>
+              <h2 className="text-xl font-black text-orange-400">
+                Top Prode
+              </h2>
 
               <button
                 onClick={() => setRankingAbierto(true)}
@@ -624,16 +848,18 @@ export default function Home() {
             </div>
 
             <div className="space-y-3">
+              {scores.length === 0 && (
+                <p className="text-gray-400">Todavía no hay puntos cargados.</p>
+              )}
+
               {scores.slice(0, 3).map((score, index) => (
                 <div
                   key={score.id}
-                  className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl flex justify-between"
+                  className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
                 >
                   <div>
-                    <p className="font-bold">
-                      {index === 0 && "🥇 "}
-                      {index === 1 && "🥈 "}
-                      {index === 2 && "🥉 "}
+                    <p className="font-black text-lg">
+                      {medallaRanking(index)}{" "}
                       {score.players?.full_name ?? "Sin nombre"}
                     </p>
                     <p className="text-sm text-gray-400">
@@ -641,14 +867,18 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
+                  <p className="text-[#ffcc00] font-black text-xl">
+                    {score.points} pts
+                  </p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="bg-[#111118] border border-[#e8357a] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(232,53,122,0.18)]">
-            <h2 className="text-xl font-black mb-4 text-[#e8357a]">🎁 Premios</h2>
+            <h2 className="text-xl font-black mb-4 text-[#e8357a]">
+              Premios
+            </h2>
 
             <div className="space-y-3 text-base md:text-lg">
               <p>
@@ -820,7 +1050,7 @@ export default function Home() {
           <div className="bg-[#111118] border border-[#7c3aed] rounded-2xl p-5 md:p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-[0_0_40px_rgba(124,58,237,0.35)]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-black text-orange-400">
-                🏆 Ranking completo
+                Ranking completo
               </h2>
 
               <button
@@ -835,18 +1065,21 @@ export default function Home() {
               {scores.map((score, index) => (
                 <div
                   key={score.id}
-                  className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl flex justify-between"
+                  className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
                 >
                   <div>
                     <p className="font-bold">
-                      #{index + 1} {score.players?.full_name ?? "Sin nombre"}
+                      {medallaRanking(index)}{" "}
+                      {score.players?.full_name ?? "Sin nombre"}
                     </p>
                     <p className="text-sm text-gray-400">
                       {score.players?.casino_user ?? "Sin usuario"}
                     </p>
                   </div>
 
-                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
+                  <p className="text-[#ffcc00] font-black">
+                    {score.points} pts
+                  </p>
                 </div>
               ))}
             </div>
