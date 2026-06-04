@@ -34,6 +34,7 @@ type ChampionStat = {
 const WORLD_CUP_TROPHY_IMAGE = "/trophy-hero.png";
 const WORLD_CUP_2030_LOGO = "/worldcup2030-logo.png";
 const BET30_LOGO = "/bet30-logo.png";
+const TOTAL_PARTIDOS_GRUPOS = 72;
 
 const FLAG_CODES: Record<string, string> = {
   México: "mx",
@@ -164,6 +165,7 @@ export default function Home() {
   const [campeonGuardado, setCampeonGuardado] = useState("");
   const [championStats, setChampionStats] = useState<ChampionStat[]>([]);
   const [ahora, setAhora] = useState(Date.now());
+  const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking">("grupos");
 
   useEffect(() => {
     cargarPartidos();
@@ -609,31 +611,25 @@ export default function Home() {
     <main className="min-h-screen bg-[#08080c] text-white p-4 md:p-6">
       <section className="max-w-6xl mx-auto">
         <div className="relative overflow-hidden rounded-[2rem] border border-[#7c3aed]/70 bg-[#050508] p-5 md:p-8 mb-6 shadow-[0_0_45px_rgba(124,58,237,0.24)]">
-  {/* fondo premium */}
-  <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(232,53,122,0.24),transparent_34%),radial-gradient(circle_at_88%_18%,rgba(255,204,0,0.13),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(34,85,238,0.24),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.03),transparent_35%,rgba(124,58,237,0.08))]" />
-
-  {/* textura/luces */}
-  <div className="absolute inset-0 opacity-[0.12] bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:48px_48px]" />
+  <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(232,53,122,0.24),transparent_34%),radial-gradient(circle_at_88%_18%,rgba(255,204,0,0.13),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(34,85,238,0.24),transparent_36%)]" />
+  <div className="absolute inset-0 opacity-[0.10] bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:48px_48px]" />
   <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#2255ee] to-transparent" />
 
-  {/* logo 2030 traslúcido atrás */}
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <img
       src={WORLD_CUP_2030_LOGO}
-      alt="Emblema Mundial 2030"
-      className="w-[92%] max-w-[920px] opacity-[0.075] object-contain blur-[0.3px] scale-110"
+      alt="Emblema Mundial"
+      className="w-[92%] max-w-[920px] opacity-[0.07] object-contain blur-[0.3px] scale-110"
     />
   </div>
 
-  {/* brillos decorativos */}
   <div className="absolute -left-24 top-20 h-56 w-56 rounded-full bg-[#e8357a]/20 blur-3xl" />
   <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-[#2255ee]/20 blur-3xl" />
 
   <div className="relative z-10 grid gap-8 md:grid-cols-[1.05fr_430px] items-center">
-    {/* izquierda */}
     <div>
-      <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 backdrop-blur-md">
+      <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#e8357a]/40 bg-black/35 px-4 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(232,53,122,0.18)]">
         <span className="text-[10px] md:text-xs tracking-[0.35em] uppercase text-orange-300">
           Prime Rock x
         </span>
@@ -641,7 +637,7 @@ export default function Home() {
         <img
           src={BET30_LOGO}
           alt="BET30"
-          className="h-6 md:h-7 w-auto object-contain"
+          className="h-8 md:h-9 w-auto object-contain drop-shadow-[0_0_14px_rgba(34,85,238,0.45)]"
         />
       </div>
 
@@ -659,8 +655,7 @@ export default function Home() {
       </h1>
 
       <p className="text-gray-300 text-base md:text-lg max-w-xl">
-        Viví el Mundial con pronósticos, ranking en vivo, premios y bonus por
-        campeón elegido.
+        Viví el Mundial con pronósticos, ranking en vivo, premios y bonus por campeón elegido.
       </p>
 
       <p className="mt-3 text-gray-300">
@@ -672,7 +667,7 @@ export default function Home() {
         <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 backdrop-blur-sm">
           <p className="text-xs text-gray-400">Partidos</p>
           <p className="text-2xl font-black text-orange-400">
-            {matches.length}
+            {TOTAL_PARTIDOS_GRUPOS}
           </p>
         </div>
 
@@ -699,7 +694,6 @@ export default function Home() {
       </div>
     </div>
 
-    {/* derecha */}
     <div className="relative flex justify-center md:justify-end">
       <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle,rgba(255,196,0,0.24),transparent_58%)] blur-2xl" />
 
@@ -740,83 +734,118 @@ export default function Home() {
   </div>
 </div>
 
-        {proximoPartido && (
-          <div className="mb-6 rounded-2xl border border-orange-500/60 bg-gradient-to-r from-[#1b1b25] to-[#10101a] p-5 shadow-[0_0_26px_rgba(249,115,22,0.16)]">
-            <div className="grid gap-4 md:grid-cols-[1fr_220px] md:items-center">
-              <div>
-                <p className="text-xs tracking-[0.35em] uppercase text-orange-400 mb-2">
-                  Próximo partido
-                </p>
+<div className="mb-6 overflow-hidden rounded-2xl border border-[#7c3aed]/70 bg-[#0b0b12] shadow-[0_0_30px_rgba(124,58,237,0.18)]">
+  <div className="grid grid-cols-3">
+    <button
+      onClick={() => setTabActiva("grupos")}
+      className={`p-4 font-black text-sm md:text-lg transition ${
+        tabActiva === "grupos"
+          ? "bg-[#e8357a]/15 text-[#e8357a] border-b-4 border-[#e8357a]"
+          : "text-gray-300 hover:bg-white/5"
+      }`}
+    >
+      ⚽ Fase de grupos
+    </button>
 
-                <div className="flex flex-col gap-2 text-xl md:text-2xl font-black">
-                  <BanderaEquipo equipo={proximoPartido.home_team} />
-                  <span className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
-                    VS
-                  </span>
-                  <BanderaEquipo equipo={proximoPartido.away_team} />
-                </div>
+    <button
+      onClick={() => setTabActiva("eliminatorias")}
+      className={`p-4 font-black text-sm md:text-lg transition ${
+        tabActiva === "eliminatorias"
+          ? "bg-[#2255ee]/15 text-[#4f8cff] border-b-4 border-[#2255ee]"
+          : "text-gray-300 hover:bg-white/5"
+      }`}
+    >
+      🏆 Eliminatorias
+    </button>
 
-                <p className="mt-3 text-yellow-400 font-bold">
-                  🕒 {formatearFecha(proximoPartido.match_date)}
-                </p>
-              </div>
+    <button
+      onClick={() => setTabActiva("ranking")}
+      className={`p-4 font-black text-sm md:text-lg transition ${
+        tabActiva === "ranking"
+          ? "bg-yellow-500/15 text-yellow-400 border-b-4 border-yellow-400"
+          : "text-gray-300 hover:bg-white/5"
+      }`}
+    >
+      📊 Ranking
+    </button>
+  </div>
+</div>
 
-              <div className="rounded-2xl border border-yellow-500/50 bg-yellow-500/10 p-4 text-center">
-                <p className="text-sm text-gray-300">Cuenta regresiva</p>
-                <p className="text-3xl font-black text-yellow-400">
-                  {cuentaRegresiva(proximoPartido.match_date, ahora)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+{tabActiva === "grupos" && proximoPartido && (
+  <div className="mb-6 rounded-2xl border border-orange-500/60 bg-gradient-to-r from-[#1b1b25] to-[#10101a] p-5 shadow-[0_0_26px_rgba(249,115,22,0.16)]">
+    <div className="grid gap-4 md:grid-cols-[1fr_220px] md:items-center">
+      <div>
+        <p className="text-xs tracking-[0.35em] uppercase text-orange-400 mb-2">
+          Próximo partido
+        </p>
 
-        <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
-          <h2 className="text-xl font-black mb-2">Ingresar al Prode</h2>
-
-          {!playerId ? (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-400">
-                Ingresá tu usuario BET30 para acceder al Prode.
-              </p>
-
-              <input
-                className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
-                placeholder="Usuario BET30"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-              />
-
-              <button
-                onClick={registrarse}
-                className="w-full bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-black p-3 rounded hover:scale-[1.01] transition"
-              >
-                Ingresar
-              </button>
-            </div>
-          ) : (
-            <div className="text-center">
-              <p className="text-green-400 font-bold">
-                ✅ Conectado como {usuario}
-              </p>
-
-              <button
-                onClick={cerrarSesion}
-                className="mt-4 w-full bg-red-500 text-white font-bold p-3 rounded"
-              >
-                Cerrar sesión
-              </button>
-            </div>
-          )}
-
-          {mensaje && (
-            <p className="text-center text-orange-300 font-bold mt-4">
-              {mensaje}
-            </p>
-          )}
+        <div className="flex flex-col gap-2 text-xl md:text-2xl font-black">
+          <BanderaEquipo equipo={proximoPartido.home_team} />
+          <span className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
+            VS
+          </span>
+          <BanderaEquipo equipo={proximoPartido.away_team} />
         </div>
 
-        <div className="bg-gradient-to-br from-[#1b1b25] via-[#111118] to-[#0f0f16] border border-yellow-500/60 p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_35px_rgba(255,204,0,0.16)]">
+        <p className="mt-3 text-yellow-400 font-bold">
+          🕒 {formatearFecha(proximoPartido.match_date)}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-yellow-500/50 bg-yellow-500/10 p-4 text-center">
+        <p className="text-sm text-gray-300">Cuenta regresiva</p>
+        <p className="text-3xl font-black text-yellow-400">
+          {cuentaRegresiva(proximoPartido.match_date, ahora)}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+
+<div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
+  <h2 className="text-xl font-black mb-2">Ingresar al Prode</h2>
+
+  {!playerId ? (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-400">
+        Ingresá tu usuario BET30 para acceder al Prode.
+      </p>
+
+      <input
+        className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
+        placeholder="Usuario BET30"
+        value={usuario}
+        onChange={(e) => setUsuario(e.target.value)}
+      />
+
+      <button
+        onClick={registrarse}
+        className="w-full bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-black p-3 rounded hover:scale-[1.01] transition"
+      >
+        Ingresar
+      </button>
+    </div>
+  ) : (
+    <div className="text-center">
+      <p className="text-green-400 font-bold">
+        ✅ Conectado como {usuario}
+      </p>
+
+      <button
+        onClick={cerrarSesion}
+        className="mt-4 w-full bg-red-500 text-white font-bold p-3 rounded"
+      >
+        Cerrar sesión
+      </button>
+    </div>
+  )}
+
+  {mensaje && (
+    <p className="text-center text-orange-300 font-bold mt-4">
+      {mensaje}
+    </p>
+  )}
+</div>
           <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
             <div>
               <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
@@ -977,143 +1006,195 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="bg-[#111118] border border-zinc-700 p-5 md:p-6 rounded-2xl">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-            <h2 className="text-2xl font-black">Fixture y pronósticos</h2>
+        {tabActiva === "grupos" && (
+  <div className="bg-[#111118] border border-zinc-700 p-5 md:p-6 rounded-2xl">
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+      <h2 className="text-2xl font-black">Fixture y pronósticos</h2>
 
+      <button
+        onClick={guardarTodosLosPronosticos}
+        className="bg-gradient-to-r from-[#e8357a] to-[#2255ee] text-white font-black px-5 py-3 rounded hover:scale-[1.02] transition"
+      >
+        Guardar todos
+      </button>
+    </div>
+
+    <div className="space-y-5">
+      {partidosPorGrupo.map(([grupo, partidos]) => {
+        const abierto = gruposAbiertos[grupo] ?? false;
+
+        return (
+          <div
+            key={grupo}
+            className="border border-zinc-700 rounded-2xl overflow-hidden bg-[#0f0f16]"
+          >
             <button
-              onClick={guardarTodosLosPronosticos}
-              className="bg-gradient-to-r from-[#e8357a] to-[#2255ee] text-white font-black px-5 py-3 rounded hover:scale-[1.02] transition"
+              onClick={() => toggleGrupo(grupo)}
+              className="w-full flex items-center justify-between p-4 bg-[#1b1b25] hover:bg-[#242435] transition"
             >
-              Guardar todos
+              <div>
+                <p className="text-orange-400 font-black text-lg">
+                  {abierto ? "▼" : "▶"} {grupo}
+                </p>
+                <p className="text-sm text-gray-400">{partidos.length} partidos</p>
+              </div>
+
+              <span className="text-[#ffcc00] font-black">
+                {abierto ? "Ocultar" : "Ver partidos"}
+              </span>
             </button>
-          </div>
 
-          <div className="space-y-5">
-            {partidosPorGrupo.map(([grupo, partidos]) => {
-              const abierto = gruposAbiertos[grupo] ?? false;
+            {abierto && (
+              <div className="space-y-4 p-4">
+                {partidos.map((match) => {
+                  const bloqueado = partidoBloqueado(match);
 
-              return (
-                <div
-                  key={grupo}
-                  className="border border-zinc-700 rounded-2xl overflow-hidden bg-[#0f0f16]"
-                >
-                  <button
-                    onClick={() => toggleGrupo(grupo)}
-                    className="w-full flex items-center justify-between p-4 bg-[#1b1b25] hover:bg-[#242435] transition"
-                  >
-                    <div>
-                      <p className="text-orange-400 font-black text-lg">
-                        {abierto ? "▼" : "▶"} {grupo}
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        {partidos.length} partidos
-                      </p>
-                    </div>
+                  return (
+                    <div
+                      key={match.id}
+                      className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
+                    >
+                      <div className="md:col-span-2">
+                        <p className="text-xs text-orange-300 uppercase font-bold">
+                          {match.phase}
+                        </p>
 
-                    <span className="text-[#ffcc00] font-black">
-                      {abierto ? "Ocultar" : "Ver partidos"}
-                    </span>
-                  </button>
-
-                  {abierto && (
-                    <div className="space-y-4 p-4">
-                      {partidos.map((match) => {
-                        const bloqueado = partidoBloqueado(match);
-
-                        return (
-                          <div
-                            key={match.id}
-                            className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
-                          >
-                            <div className="md:col-span-2">
-                              <p className="text-xs text-orange-300 uppercase font-bold">
-                                {match.phase}
-                              </p>
-
-                              <div className="space-y-2">
-                                <div className="font-black text-white">
-                                  <BanderaEquipo equipo={match.home_team} />
-                                </div>
-
-                                <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
-                                  VS
-                                </div>
-
-                                <div className="font-black text-white">
-                                  <BanderaEquipo equipo={match.away_team} />
-                                </div>
-                              </div>
-
-                              <p className="text-[#ffcc00] text-sm font-bold mt-1">
-                                🕒 {formatearFecha(match.match_date)}
-                              </p>
-
-                              {bloqueado && (
-                                <p className="text-red-400 text-sm mt-1">
-                                  🔒 Pronóstico cerrado
-                                </p>
-                              )}
-                            </div>
-
-                            <input
-                              disabled={bloqueado}
-                              className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
-                              type="number"
-                              min="0"
-                              placeholder="Local"
-                              value={predictions[match.id]?.home ?? ""}
-                              onChange={(e) =>
-                                setPredictions((prev) => ({
-                                  ...prev,
-                                  [match.id]: {
-                                    home: e.target.value,
-                                    away: prev[match.id]?.away ?? "",
-                                  },
-                                }))
-                              }
-                            />
-
-                            <input
-                              disabled={bloqueado}
-                              className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
-                              type="number"
-                              min="0"
-                              placeholder="Visitante"
-                              value={predictions[match.id]?.away ?? ""}
-                              onChange={(e) =>
-                                setPredictions((prev) => ({
-                                  ...prev,
-                                  [match.id]: {
-                                    home: prev[match.id]?.home ?? "",
-                                    away: e.target.value,
-                                  },
-                                }))
-                              }
-                            />
-
-                            <button
-                              disabled={bloqueado}
-                              onClick={() => guardarPronostico(match.id)}
-                              className={`font-black p-3 rounded ${
-                                bloqueado
-                                  ? "bg-gray-600 text-white cursor-not-allowed"
-                                  : "bg-orange-500 text-black hover:bg-yellow-400"
-                              }`}
-                            >
-                              {bloqueado ? "🔒 Cerrado" : "Guardar"}
-                            </button>
+                        <div className="space-y-2">
+                          <div className="font-black text-white">
+                            <BanderaEquipo equipo={match.home_team} />
                           </div>
-                        );
-                      })}
+
+                          <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
+                            VS
+                          </div>
+
+                          <div className="font-black text-white">
+                            <BanderaEquipo equipo={match.away_team} />
+                          </div>
+                        </div>
+
+                        <p className="text-[#ffcc00] text-sm font-bold mt-1">
+                          🕒 {formatearFecha(match.match_date)}
+                        </p>
+
+                        {bloqueado && (
+                          <p className="text-red-400 text-sm mt-1">
+                            🔒 Pronóstico cerrado
+                          </p>
+                        )}
+                      </div>
+
+                      <input
+                        disabled={bloqueado}
+                        className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
+                        type="number"
+                        min="0"
+                        placeholder="Local"
+                        value={predictions[match.id]?.home ?? ""}
+                        onChange={(e) =>
+                          setPredictions((prev) => ({
+                            ...prev,
+                            [match.id]: {
+                              home: e.target.value,
+                              away: prev[match.id]?.away ?? "",
+                            },
+                          }))
+                        }
+                      />
+
+                      <input
+                        disabled={bloqueado}
+                        className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
+                        type="number"
+                        min="0"
+                        placeholder="Visitante"
+                        value={predictions[match.id]?.away ?? ""}
+                        onChange={(e) =>
+                          setPredictions((prev) => ({
+                            ...prev,
+                            [match.id]: {
+                              home: prev[match.id]?.home ?? "",
+                              away: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+
+                      <button
+                        disabled={bloqueado}
+                        onClick={() => guardarPronostico(match.id)}
+                        className={`font-black p-3 rounded ${
+                          bloqueado
+                            ? "bg-gray-600 text-white cursor-not-allowed"
+                            : "bg-orange-500 text-black hover:bg-yellow-400"
+                        }`}
+                      >
+                        {bloqueado ? "🔒 Cerrado" : "Guardar"}
+                      </button>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
+{tabActiva === "eliminatorias" && (
+  <div className="bg-[#111118] border border-[#2255ee]/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(34,85,238,0.18)]">
+    <p className="text-xs tracking-[0.4em] uppercase text-[#4f8cff] mb-3">
+      Eliminatorias
+    </p>
+
+    <h2 className="text-3xl font-black mb-3">🏆 Cruces eliminatorios</h2>
+
+    <p className="text-gray-300 mb-5">
+      Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.
+    </p>
+
+    <div className="grid gap-4 md:grid-cols-3">
+      {["Dieciseisavos", "Octavos", "Cuartos"].map((fase) => (
+        <div key={fase} className="rounded-2xl border border-zinc-700 bg-[#0f0f16] p-5">
+          <p className="text-xl font-black text-white">{fase}</p>
+          <p className="mt-2 text-sm text-gray-400">Próximamente disponible.</p>
+          <button className="mt-4 w-full rounded border border-[#2255ee] bg-[#2255ee]/10 p-3 font-black text-[#4f8cff]">
+            🔒 Bloqueado
+          </button>
         </div>
-      </section>
+      ))}
+    </div>
+  </div>
+)}
+
+{tabActiva === "ranking" && (
+  <div className="bg-[#111118] border border-yellow-500/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(255,204,0,0.14)]">
+    <h2 className="text-3xl font-black text-yellow-400 mb-5">📊 Ranking completo</h2>
+
+    <div className="space-y-3">
+      {scores.map((score, index) => (
+        <div
+          key={score.id}
+          className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
+        >
+          <div>
+            <p className="font-black">
+              {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
+            </p>
+            <p className="text-sm text-gray-400">
+              {score.players?.casino_user ?? "Sin usuario"}
+            </p>
+          </div>
+
+          <p className="text-[#ffcc00] font-black">{score.points} pts</p>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+</section>
 
       {rankingAbierto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
