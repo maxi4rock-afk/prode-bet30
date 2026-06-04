@@ -166,17 +166,7 @@ export default function AdminPage() {
       setMensaje("Error al cargar ranking.");
       return;
     }
-    async function cargarCampeonReal() {
-  const { data } = await supabase
-    .from("tournament_config")
-    .select("champion")
-    .eq("id", 1)
-    .maybeSingle();
-
-  if (data?.champion) {
-    setCampeonReal(data.champion);
-  }
-}
+    
 
     const formatted = (data || []).map((row: any) => ({
       id: row.id,
@@ -187,6 +177,17 @@ export default function AdminPage() {
 
     setRanking(formatted);
   }
+async function cargarCampeonReal() {
+  const { data } = await supabase
+    .from("tournament_config")
+    .select("champion")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (data?.champion) {
+    setCampeonReal(data.champion);
+  }
+}
 
   function entrarAdmin() {
     setAdminAutorizado(true);
