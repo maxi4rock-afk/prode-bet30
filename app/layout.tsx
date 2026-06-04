@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     siteName: "PRODE BET30",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://prode-bet30.vercel.app/og-image.png",
         width: 1200,
         height: 630,
         alt: "PRODE BET30 Mundial 2026",
