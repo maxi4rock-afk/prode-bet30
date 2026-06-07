@@ -31,78 +31,53 @@ type ChampionStat = {
   count: number;
 };
 
+type Standing = {
+  id: string;
+  group_name: string;
+  team: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  points: number;
+};
 
-const WORLD_CUP_TROPHY_IMAGE = "/trophy-hero.png";
-const WORLD_CUP_2030_LOGO = "/worldcup2030-logo.png";
+type Toast = {
+  id: number;
+  message: string;
+  type: "success" | "error";
+};
+
+const WORLD_CUP_2030_LOGO = "/trophy-hero.png";
 const BET30_LOGO = "/bet30-logo.png";
 const TOTAL_PARTIDOS_GRUPOS = 72;
 
 const FLAG_CODES: Record<string, string> = {
-  México: "mx",
-  Sudáfrica: "za",
-  "Corea del Sur": "kr",
-  "República Checa": "cz",
-  Canadá: "ca",
-  Bosnia: "ba",
-  "Estados Unidos": "us",
-  Paraguay: "py",
-  Qatar: "qa",
-  Suiza: "ch",
-  Brasil: "br",
-  Marruecos: "ma",
-  Haití: "ht",
-  Escocia: "gb",
-  Australia: "au",
-  Turquía: "tr",
-  Alemania: "de",
-  Curazao: "cw",
-  "Países Bajos": "nl",
-  Japón: "jp",
-  "Costa de Marfil": "ci",
-  Ecuador: "ec",
-  Suecia: "se",
-  Túnez: "tn",
-  España: "es",
-  "Cabo Verde": "cv",
-  Bélgica: "be",
-  Egipto: "eg",
-  "Arabia Saudita": "sa",
-  Uruguay: "uy",
-  Irán: "ir",
-  "Nueva Zelanda": "nz",
-  Francia: "fr",
-  Senegal: "sn",
-  Irak: "iq",
-  Noruega: "no",
-  Argentina: "ar",
-  Argelia: "dz",
-  Austria: "at",
-  Jordania: "jo",
-  Portugal: "pt",
-  "RD Congo": "cd",
-  Inglaterra: "gb",
-  Croacia: "hr",
-  Ghana: "gh",
-  Panamá: "pa",
-  Uzbekistán: "uz",
-  Colombia: "co",
+  México: "mx", Sudáfrica: "za", "Corea del Sur": "kr", "República Checa": "cz",
+  Canadá: "ca", Bosnia: "ba", "Estados Unidos": "us", Paraguay: "py", Qatar: "qa",
+  Suiza: "ch", Brasil: "br", Marruecos: "ma", Haití: "ht", Escocia: "gb",
+  Australia: "au", Turquía: "tr", Alemania: "de", Curazao: "cw", "Países Bajos": "nl",
+  Japón: "jp", "Costa de Marfil": "ci", Ecuador: "ec", Suecia: "se", Túnez: "tn",
+  España: "es", "Cabo Verde": "cv", Bélgica: "be", Egipto: "eg", "Arabia Saudita": "sa",
+  Uruguay: "uy", Irán: "ir", "Nueva Zelanda": "nz", Francia: "fr", Senegal: "sn",
+  Irak: "iq", Noruega: "no", Argentina: "ar", Argelia: "dz", Austria: "at",
+  Jordania: "jo", Portugal: "pt", "RD Congo": "cd", Inglaterra: "gb", Croacia: "hr",
+  Ghana: "gh", Panamá: "pa", Uzbekistán: "uz", Colombia: "co",
 };
 
 const TEAMS = Object.keys(FLAG_CODES).sort((a, b) => a.localeCompare(b));
 
-function BanderaEquipo({ equipo }: { equipo: string }) {
+function BanderaEquipo({ equipo, size = "md" }: { equipo: string; size?: "sm" | "md" }) {
   const code = FLAG_CODES[equipo];
-
   return (
     <span className="inline-flex items-center gap-2">
       {code ? (
-        <img
-          src={`https://flagcdn.com/w40/${code}.png`}
-          alt={equipo}
-          className="h-5 w-7 rounded object-cover border border-zinc-600"
-        />
+        <img src={`https://flagcdn.com/w40/${code}.png`} alt={equipo}
+          className={size === "sm" ? "h-4 w-6 rounded object-cover border border-white/10" : "h-5 w-7 rounded object-cover border border-zinc-600"} />
       ) : (
-        <div className="h-5 w-7 bg-zinc-700 rounded" />
+        <div className={size === "sm" ? "h-4 w-6 bg-zinc-700 rounded" : "h-5 w-7 bg-zinc-700 rounded"} />
       )}
       <span>{equipo}</span>
     </span>
@@ -110,1056 +85,876 @@ function BanderaEquipo({ equipo }: { equipo: string }) {
 }
 
 function medallaRanking(index: number) {
-  if (index === 0) return "🥇";
-  if (index === 1) return "🥈";
-  if (index === 2) return "🥉";
-  return `#${index + 1}`;
-}
-
-function estiloRanking(index: number) {
-  if (index === 0) {
-    return "border-yellow-400/80 shadow-[0_0_24px_rgba(255,204,0,0.20)] bg-gradient-to-r from-yellow-500/10 to-[#1b1b25]";
-  }
-
-  if (index === 1) {
-    return "border-zinc-300/60 shadow-[0_0_20px_rgba(255,255,255,0.10)] bg-gradient-to-r from-white/10 to-[#1b1b25]";
-  }
-
-  if (index === 2) {
-    return "border-orange-500/70 shadow-[0_0_20px_rgba(249,115,22,0.15)] bg-gradient-to-r from-orange-500/10 to-[#1b1b25]";
-  }
-
-  return "border-zinc-700 bg-[#1b1b25]";
+  if (index === 0) return "01";
+  if (index === 1) return "02";
+  if (index === 2) return "03";
+  return `${String(index + 1).padStart(2, "0")}`;
 }
 
 function cuentaRegresiva(fecha: string | null, ahora: number) {
-  if (!fecha) return "Fecha pendiente";
-
+  if (!fecha) return "Próximamente";
   const target = new Date(fecha).getTime();
-
-  if (isNaN(target)) return "Fecha inválida";
-
+  if (isNaN(target)) return "—";
   const diff = target - ahora;
-
-  if (diff <= 0) return "Ya empezó";
-
+  if (diff <= 0) return "En curso";
   const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
   const horas = Math.floor((diff / (1000 * 60 * 60)) % 24);
   const minutos = Math.floor((diff / (1000 * 60)) % 60);
-
   if (dias > 0) return `${dias}d ${horas}h ${minutos}m`;
   if (horas > 0) return `${horas}h ${minutos}m`;
-
   return `${minutos}m`;
 }
 
 export default function Home() {
   const [usuario, setUsuario] = useState("");
   const [nombreVisible, setNombreVisible] = useState("");
-  const [mensaje, setMensaje] = useState("");
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [predictions, setPredictions] = useState<Record<string, PredictionInput>>({});
   const [scores, setScores] = useState<Score[]>([]);
-  const [rankingAbierto, setRankingAbierto] = useState(false);
   const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({});
   const [campeon, setCampeon] = useState("");
   const [campeonGuardado, setCampeonGuardado] = useState("");
   const [championStats, setChampionStats] = useState<ChampionStat[]>([]);
+  const [standings, setStandings] = useState<Standing[]>([]);
   const [ahora, setAhora] = useState(Date.now());
-  const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking">("grupos");
+  const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking" | "reglas" | "miperfil">("grupos");
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  function showToast(message: string, type: "success" | "error" = "success") {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }
 
   useEffect(() => {
-    cargarPartidos();
-    cargarRanking();
-    cargarCampeonesElegidos();
-
+    cargarPartidos(); cargarRanking(); cargarCampeonesElegidos(); cargarStandings();
     const savedPlayerId = localStorage.getItem("playerId");
     const savedUsuario = localStorage.getItem("usuario");
     const savedNombreVisible = localStorage.getItem("nombreVisible");
-
     if (savedPlayerId) {
       setPlayerId(savedPlayerId);
       cargarPronosticos(savedPlayerId);
       cargarCampeon(savedPlayerId);
-      setMensaje("✅ Sesión recuperada.");
+      showToast("✅ Sesión recuperada.");
     }
-
     if (savedUsuario) setUsuario(savedUsuario);
     if (savedNombreVisible) setNombreVisible(savedNombreVisible);
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAhora(Date.now());
-    }, 60000);
-
+    const interval = setInterval(() => setAhora(Date.now()), 60000);
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (menuAbierto) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [menuAbierto]);
+
   const partidosPorGrupo = useMemo(() => {
     const grupos: Record<string, Match[]> = {};
-
-    matches.forEach((match) => {
-      if (!grupos[match.phase]) grupos[match.phase] = [];
-      grupos[match.phase].push(match);
-    });
-
+    matches.forEach((m) => { if (!grupos[m.phase]) grupos[m.phase] = []; grupos[m.phase].push(m); });
     return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b));
   }, [matches]);
 
   const proximoPartido = useMemo(() => {
-    return (
-      matches
-        .filter((match) => match.match_date)
-        .filter((match) => {
-          const fecha = new Date(match.match_date as string).getTime();
-          return !isNaN(fecha) && fecha > ahora;
-        })
-        .sort((a, b) => {
-          const fechaA = new Date(a.match_date as string).getTime();
-          const fechaB = new Date(b.match_date as string).getTime();
-          return fechaA - fechaB;
-        })[0] ?? null
-    );
+    return matches
+      .filter((m) => m.match_date)
+      .filter((m) => { const f = new Date(m.match_date as string).getTime(); return !isNaN(f) && f > ahora; })
+      .sort((a, b) => new Date(a.match_date as string).getTime() - new Date(b.match_date as string).getTime())[0] ?? null;
   }, [matches, ahora]);
 
-  const partidosBloqueados = useMemo(() => {
-    return matches.filter((match) => partidoBloqueado(match)).length;
-  }, [matches, ahora]);
+  const partidosBloqueados = useMemo(() => matches.filter(partidoBloqueado).length, [matches, ahora]);
+  const pronosticosCargados = useMemo(() =>
+    Object.values(predictions).filter((p) => p.home !== "" && p.away !== "").length, [predictions]);
 
-  const pronosticosCargados = useMemo(() => {
-    return Object.values(predictions).filter((pred) => pred.home !== "" && pred.away !== "").length;
-  }, [predictions]);
-
-  function toggleGrupo(grupo: string) {
-    setGruposAbiertos((prev) => ({
-      ...prev,
-      [grupo]: !(prev[grupo] ?? false),
-    }));
-  }
-
-  function normalizarUsuario(valor: string) {
-    return String(valor || "").toLowerCase().trim().replace(/\s+/g, "");
-  }
+  function toggleGrupo(g: string) { setGruposAbiertos((prev) => ({ ...prev, [g]: !(prev[g] ?? false) })); }
+  function normalizarUsuario(v: string) { return String(v || "").toLowerCase().trim().replace(/\s+/g, ""); }
 
   function formatearFecha(fecha: string | null) {
     if (!fecha) return "Fecha pendiente";
-
     const date = new Date(fecha);
     if (isNaN(date.getTime())) return "Fecha inválida";
-
-    const dia = date.toLocaleDateString("es-AR", {
-      timeZone: "America/Argentina/Buenos_Aires",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-
-    const hora = date.toLocaleTimeString("es-AR", {
-      timeZone: "America/Argentina/Buenos_Aires",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    return `${dia} - ${hora} hs`;
+    const dia = date.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "2-digit", year: "numeric" });
+    const hora = date.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit" });
+    return `${dia} · ${hora} hs`;
   }
 
   function partidoBloqueado(match: Match) {
     if (match.locked) return true;
     if (!match.match_date) return false;
+    const f = new Date(match.match_date);
+    if (isNaN(f.getTime())) return false;
+    return f.getTime() <= Date.now();
+  }
 
-    const fechaPartido = new Date(match.match_date);
-    if (isNaN(fechaPartido.getTime())) return false;
-
-    return fechaPartido.getTime() <= Date.now();
+  function navegarA(tab: typeof tabActiva) {
+    setTabActiva(tab);
+    setMenuAbierto(false);
+    setTimeout(() => {
+      document.getElementById("contenido-principal")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   }
 
   async function cargarPartidos() {
-    const { data, error } = await supabase
-      .from("matches")
-      .select("id, phase, match_date, home_team, away_team, locked")
-      .order("match_date", { ascending: true });
-
-    if (error) {
-      console.log("Error partidos:", error);
-      setMensaje("Error al cargar partidos.");
-      return;
-    }
-
+    const { data, error } = await supabase.from("matches").select("id, phase, match_date, home_team, away_team, locked").order("match_date", { ascending: true });
+    if (error) { showToast("Error al cargar partidos.", "error"); return; }
     setMatches(data ?? []);
   }
 
   async function cargarRanking() {
-    const { data, error } = await supabase
-      .from("score")
-      .select(`
-        id,
-        points,
-        players (
-          full_name,
-          casino_user
-        )
-      `)
-      .order("points", { ascending: false });
-
-    if (error) {
-      console.log("Error ranking:", error);
-      return;
-    }
-
-    const formattedScores: Score[] = (data || []).map((item: any) => ({
-      id: item.id,
-      points: item.points,
-      players: Array.isArray(item.players) ? item.players[0] : item.players,
-    }));
-
-    setScores(formattedScores);
+    const { data, error } = await supabase.from("score").select("id, points, players ( full_name, casino_user )").order("points", { ascending: false });
+    if (error) return;
+    setScores((data || []).map((item: any) => ({ id: item.id, points: item.points, players: Array.isArray(item.players) ? item.players[0] : item.players })));
   }
 
   async function cargarCampeonesElegidos() {
-    const { data, error } = await supabase
-      .from("champion_predictions")
-      .select("champion");
-
-    if (error) {
-      console.log("Error cargando campeones elegidos:", error);
-      return;
-    }
-
+    const { data, error } = await supabase.from("champion_predictions").select("champion");
+    if (error) return;
     const conteo: Record<string, number> = {};
-
-    (data || []).forEach((row) => {
-      if (!row.champion) return;
-      conteo[row.champion] = (conteo[row.champion] || 0) + 1;
-    });
-
-    const stats = Object.entries(conteo)
-      .map(([champion, count]) => ({ champion, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    setChampionStats(stats);
+    (data || []).forEach((row) => { if (row.champion) conteo[row.champion] = (conteo[row.champion] || 0) + 1; });
+    setChampionStats(Object.entries(conteo).map(([champion, count]) => ({ champion, count })).sort((a, b) => b.count - a.count).slice(0, 5));
   }
 
-  async function cargarPronosticos(idJugador: string) {
-    const { data, error } = await supabase
-      .from("predictions")
-      .select("match_id, predicted_home_goals, predicted_away_goals")
-      .eq("player_id", idJugador);
+  async function cargarStandings() {
+    const { data } = await supabase.from("standings").select("*").order("group_name").order("points", { ascending: false });
+    setStandings(data || []);
+  }
 
-    if (error) {
-      console.log("Error pronósticos:", error);
-      return;
-    }
-
+  async function cargarPronosticos(id: string) {
+    const { data, error } = await supabase.from("predictions").select("match_id, predicted_home_goals, predicted_away_goals").eq("player_id", id);
+    if (error) return;
     const loaded: Record<string, PredictionInput> = {};
-
-    (data || []).forEach((pred) => {
-      loaded[pred.match_id] = {
-        home: String(pred.predicted_home_goals),
-        away: String(pred.predicted_away_goals),
-      };
-    });
-
+    (data || []).forEach((p) => { loaded[p.match_id] = { home: String(p.predicted_home_goals), away: String(p.predicted_away_goals) }; });
     setPredictions(loaded);
   }
 
-  async function cargarCampeon(idJugador: string) {
-    const { data, error } = await supabase
-      .from("champion_predictions")
-      .select("champion")
-      .eq("player_id", idJugador)
-      .maybeSingle();
-
-    if (error) {
-      console.log("Error cargando campeón:", error);
-      return;
-    }
-
-    if (data?.champion) {
-      setCampeon(data.champion);
-      setCampeonGuardado(data.champion);
-    }
+  async function cargarCampeon(id: string) {
+    const { data, error } = await supabase.from("champion_predictions").select("champion").eq("player_id", id).maybeSingle();
+    if (error) return;
+    if (data?.champion) { setCampeon(data.champion); setCampeonGuardado(data.champion); }
   }
 
   async function guardarCampeon() {
-    if (!playerId) {
-      setMensaje("Primero ingresá con tu usuario BET30.");
-      return;
-    }
-
-    if (!campeon) {
-      setMensaje("Elegí un campeón antes de guardar.");
-      return;
-    }
-
+    if (!playerId) { showToast("Primero ingresá con tu usuario BET30.", "error"); return; }
+    if (!campeon) { showToast("Elegí un campeón antes de guardar.", "error"); return; }
     const { error } = await supabase.from("champion_predictions").upsert(
-      {
-        player_id: playerId,
-        champion: campeon,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "player_id",
-      }
+      { player_id: playerId, champion: campeon, updated_at: new Date().toISOString() },
+      { onConflict: "player_id" }
     );
-
-    if (error) {
-      console.log("Error guardando campeón:", error);
-      setMensaje("Error al guardar campeón.");
-      return;
-    }
-
-    setCampeonGuardado(campeon);
-    await cargarCampeonesElegidos();
-    setMensaje(`🏆 Campeón guardado: ${campeon}. Si acierta suma +15 pts.`);
+    if (error) { showToast("Error al guardar campeón.", "error"); return; }
+    setCampeonGuardado(campeon); await cargarCampeonesElegidos();
+    showToast(`🏆 Campeón guardado: ${campeon}. Si acierta suma +15 pts.`);
   }
 
   async function registrarse() {
-    setMensaje("");
-
-    if (!usuario) {
-      setMensaje("Ingresá tu usuario BET30.");
-      return;
-    }
-
+    if (!usuario) { showToast("Ingresá tu usuario BET30.", "error"); return; }
     const usuarioLimpio = normalizarUsuario(usuario);
-
-    if (!usuarioLimpio) {
-      setMensaje("Ingresá tu usuario BET30 correctamente.");
-      return;
-    }
-
     const nombreRanking = nombreVisible.trim();
-
-    if (!nombreRanking) {
-      setMensaje("Ingresá un nombre o apodo para mostrar en el ranking.");
-      return;
+    if (!nombreRanking) { showToast("Ingresá un nombre o apodo para el ranking.", "error"); return; }
+    const { data: allowedUsers, error: authError } = await supabase.from("allowed_players").select("casino_user");
+    if (authError) { showToast("Error al validar acceso.", "error"); return; }
+    if (!(allowedUsers || []).some((u) => normalizarUsuario(u.casino_user) === usuarioLimpio)) {
+      showToast("No estás habilitado para participar. Contactá con soporte.", "error"); return;
     }
-
-    const { data: allowedUsers, error: authError } = await supabase
-      .from("allowed_players")
-      .select("casino_user");
-
-    if (authError) {
-      console.log("Error allowed_players:", authError);
-      setMensaje("Error al validar acceso.");
-      return;
-    }
-
-    const autorizado = (allowedUsers || []).some((u) => {
-      return normalizarUsuario(u.casino_user) === usuarioLimpio;
-    });
-
-    if (!autorizado) {
-      setMensaje("No estás habilitado para participar. Contactá con soporte.");
-      return;
-    }
-
-    const { data: players, error: searchError } = await supabase
-      .from("players")
-      .select("id, full_name, casino_user");
-
-    if (searchError) {
-      console.log("Error buscando player:", searchError);
-      setMensaje("Error al buscar usuario.");
-      return;
-    }
-
-    const existingPlayer = (players || []).find((p) => {
-      return normalizarUsuario(p.casino_user) === usuarioLimpio;
-    });
-
-    if (existingPlayer) {
-      const { error: updateError } = await supabase
-        .from("players")
-        .update({ full_name: nombreRanking })
-        .eq("id", existingPlayer.id);
-
-      if (updateError) {
-        console.log("Error actualizando apodo:", updateError);
-        setMensaje("Error al actualizar tu apodo.");
-        return;
-      }
-
-      setPlayerId(existingPlayer.id);
-
-      localStorage.setItem("playerId", existingPlayer.id);
-      localStorage.setItem("usuario", existingPlayer.casino_user);
+    const { data: players, error: searchError } = await supabase.from("players").select("id, full_name, casino_user");
+    if (searchError) { showToast("Error al buscar usuario.", "error"); return; }
+    const existing = (players || []).find((p) => normalizarUsuario(p.casino_user) === usuarioLimpio);
+    if (existing) {
+      await supabase.from("players").update({ full_name: nombreRanking }).eq("id", existing.id);
+      setPlayerId(existing.id);
+      localStorage.setItem("playerId", existing.id);
+      localStorage.setItem("usuario", existing.casino_user);
       localStorage.setItem("nombreVisible", nombreRanking);
-
-      setUsuario(existingPlayer.casino_user);
-      setNombreVisible(nombreRanking);
-
-      await cargarRanking();
-      await cargarPronosticos(existingPlayer.id);
-      await cargarCampeon(existingPlayer.id);
-
-      setMensaje("✅ Bienvenido nuevamente. Tus pronósticos anteriores fueron cargados.");
-      return;
+      setUsuario(existing.casino_user); setNombreVisible(nombreRanking);
+      await cargarRanking(); await cargarPronosticos(existing.id); await cargarCampeon(existing.id);
+      showToast("✅ Bienvenido nuevamente. Pronósticos cargados."); return;
     }
-
-    const { data, error } = await supabase
-      .from("players")
-      .insert({
-        full_name: nombreRanking,
-        casino_user: usuarioLimpio,
-        paid: true,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.log("Error creando player:", error);
-      setMensaje("Error al registrar.");
-      return;
-    }
-
+    const { data, error } = await supabase.from("players").insert({ full_name: nombreRanking, casino_user: usuarioLimpio, paid: true }).select("id").single();
+    if (error) { showToast("Error al registrar.", "error"); return; }
     setPlayerId(data.id);
-
     localStorage.setItem("playerId", data.id);
     localStorage.setItem("usuario", usuarioLimpio);
     localStorage.setItem("nombreVisible", nombreRanking);
-
-    setUsuario(usuarioLimpio);
-    setNombreVisible(nombreRanking);
-    await cargarRanking();
-    setCampeon("");
-    setCampeonGuardado("");
-
-    setMensaje("✅ Registro exitoso. Ya podés cargar tus pronósticos.");
+    setUsuario(usuarioLimpio); setNombreVisible(nombreRanking);
+    await cargarRanking(); setCampeon(""); setCampeonGuardado("");
+    showToast("✅ Registro exitoso. Ya podés cargar tus pronósticos.");
   }
 
   async function guardarPronostico(matchId: string) {
-    if (!playerId) {
-      setMensaje("Primero ingresá con tu usuario BET30.");
-      return;
-    }
-
+    if (!playerId) { showToast("Primero ingresá con tu usuario BET30.", "error"); return; }
     const match = matches.find((m) => m.id === matchId);
-
-    if (!match || partidoBloqueado(match)) {
-      setMensaje("🔒 Este partido ya está cerrado.");
-      return;
-    }
-
+    if (!match || partidoBloqueado(match)) { showToast("🔒 Este partido ya está cerrado.", "error"); return; }
     const pred = predictions[matchId];
-
-    if (!pred || pred.home === "" || pred.away === "") {
-      setMensaje("Completá los goles del partido.");
-      return;
-    }
-
-    if (Number(pred.home) < 0 || Number(pred.away) < 0) {
-      setMensaje("Los goles no pueden ser negativos.");
-      return;
-    }
-
+    if (!pred || pred.home === "" || pred.away === "") { showToast("Completá los goles del partido.", "error"); return; }
+    if (Number(pred.home) < 0 || Number(pred.away) < 0) { showToast("Los goles no pueden ser negativos.", "error"); return; }
     const { error } = await supabase.from("predictions").upsert(
-      {
-        player_id: playerId,
-        match_id: matchId,
-        predicted_home_goals: Number(pred.home),
-        predicted_away_goals: Number(pred.away),
-      },
-      {
-        onConflict: "player_id,match_id",
-      }
+      { player_id: playerId, match_id: matchId, predicted_home_goals: Number(pred.home), predicted_away_goals: Number(pred.away) },
+      { onConflict: "player_id,match_id" }
     );
-
-    if (error) {
-      console.log("Error guardando pronóstico:", error);
-      setMensaje("Error al guardar pronóstico.");
-      return;
-    }
-
-    setMensaje("✅ Pronóstico guardado correctamente.");
+    if (error) { showToast("Error al guardar pronóstico.", "error"); return; }
+    showToast("✅ Pronóstico guardado.");
   }
 
   async function guardarTodosLosPronosticos() {
-    if (!playerId) {
-      setMensaje("Primero ingresá con tu usuario BET30.");
-      return;
-    }
-
-    const pronosticosParaGuardar = matches
-      .filter((match) => !partidoBloqueado(match))
-      .filter((match) => {
-        const pred = predictions[match.id];
-
-        return (
-          pred &&
-          pred.home !== "" &&
-          pred.away !== "" &&
-          Number(pred.home) >= 0 &&
-          Number(pred.away) >= 0
-        );
-      })
-      .map((match) => ({
-        player_id: playerId,
-        match_id: match.id,
-        predicted_home_goals: Number(predictions[match.id].home),
-        predicted_away_goals: Number(predictions[match.id].away),
-      }));
-
-    if (pronosticosParaGuardar.length === 0) {
-      setMensaje("No hay pronósticos completos para guardar.");
-      return;
-    }
-
-    const { error } = await supabase.from("predictions").upsert(
-      pronosticosParaGuardar,
-      {
-        onConflict: "player_id,match_id",
-      }
-    );
-
-    if (error) {
-      console.log("Error guardando todos:", error);
-      setMensaje("Error al guardar todos los pronósticos.");
-      return;
-    }
-
-    setMensaje(`✅ Se guardaron ${pronosticosParaGuardar.length} pronósticos correctamente.`);
+    if (!playerId) { showToast("Primero ingresá con tu usuario BET30.", "error"); return; }
+    const toSave = matches
+      .filter((m) => !partidoBloqueado(m))
+      .filter((m) => { const p = predictions[m.id]; return p && p.home !== "" && p.away !== "" && Number(p.home) >= 0 && Number(p.away) >= 0; })
+      .map((m) => ({ player_id: playerId, match_id: m.id, predicted_home_goals: Number(predictions[m.id].home), predicted_away_goals: Number(predictions[m.id].away) }));
+    if (toSave.length === 0) { showToast("No hay pronósticos completos para guardar.", "error"); return; }
+    const { error } = await supabase.from("predictions").upsert(toSave, { onConflict: "player_id,match_id" });
+    if (error) { showToast("Error al guardar todos los pronósticos.", "error"); return; }
+    showToast(`✅ ${toSave.length} pronósticos guardados correctamente.`);
   }
 
   function cerrarSesion() {
-    localStorage.removeItem("playerId");
-    localStorage.removeItem("usuario");
-    localStorage.removeItem("nombreVisible");
-    setPlayerId(null);
-    setUsuario("");
-    setNombreVisible("");
-    setPredictions({});
-    setCampeon("");
-    setCampeonGuardado("");
-    setMensaje("Sesión cerrada.");
+    localStorage.removeItem("playerId"); localStorage.removeItem("usuario"); localStorage.removeItem("nombreVisible");
+    setPlayerId(null); setUsuario(""); setNombreVisible(""); setPredictions({}); setCampeon(""); setCampeonGuardado("");
+    showToast("Sesión cerrada.");
   }
 
+  const navItems = [
+    { key: "grupos",        label: "Fase de grupos",   desc: "Pronosticá los 72 partidos" },
+    { key: "eliminatorias", label: "Eliminatorias",    desc: "Cruces del torneo" },
+    { key: "ranking",       label: "Ranking",          desc: "Tabla de posiciones" },
+    { key: "reglas",        label: "Reglas",           desc: "Cómo funciona el prode" },
+    { key: "miperfil",      label: "Mi perfil",        desc: "Tu cuenta y campeón" },
+  ] as const;
+
   return (
-    <main className="min-h-screen bg-[#08080c] text-white p-4 md:p-6">
-      <section className="max-w-6xl mx-auto">
-        <div className="relative overflow-hidden rounded-[2rem] border border-[#7c3aed]/70 bg-[#050508] p-5 md:p-8 mb-6 shadow-[0_0_45px_rgba(124,58,237,0.24)]">
-  <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(232,53,122,0.24),transparent_34%),radial-gradient(circle_at_88%_18%,rgba(255,204,0,0.13),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(34,85,238,0.24),transparent_36%)]" />
-  <div className="absolute inset-0 opacity-[0.10] bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:48px_48px]" />
-  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
-  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#2255ee] to-transparent" />
+    <main className="min-h-screen bg-[#06060a] text-white" style={{ fontFamily: "'Barlow', sans-serif", position: "relative" }}>
 
-  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <img
-      src={WORLD_CUP_2030_LOGO}
-      alt="Emblema Mundial"
-      className="w-[92%] max-w-[920px] opacity-[0.07] object-contain blur-[0.3px] scale-110"
-    />
-  </div>
-
-  <div className="absolute -left-24 top-20 h-56 w-56 rounded-full bg-[#e8357a]/20 blur-3xl" />
-  <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-[#2255ee]/20 blur-3xl" />
-
-  <div className="relative z-10 grid gap-8 md:grid-cols-[1.05fr_430px] items-center">
-    <div>
-      <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#e8357a]/40 bg-black/35 px-4 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(232,53,122,0.18)]">
-        <span className="text-[10px] md:text-xs tracking-[0.35em] uppercase text-orange-300">
-          Prime Rock x
-        </span>
-
-        <img
-          src={BET30_LOGO}
-          alt="BET30"
-          className="h-8 md:h-9 w-auto object-contain drop-shadow-[0_0_14px_rgba(34,85,238,0.45)]"
-        />
+      {/* ── FONDO ESTADIO ── */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
+        <svg width="100%" height="100%" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.055 }}>
+          <ellipse cx="600" cy="350" rx="520" ry="280" fill="none" stroke="white" strokeWidth="1.5"/>
+          <ellipse cx="600" cy="350" rx="80" ry="80" fill="none" stroke="white" strokeWidth="1"/>
+          <line x1="600" y1="70" x2="600" y2="630" stroke="white" strokeWidth="1"/>
+          <rect x="80" y="220" width="140" height="260" fill="none" stroke="white" strokeWidth="1"/>
+          <rect x="980" y="220" width="140" height="260" fill="none" stroke="white" strokeWidth="1"/>
+          <rect x="80" y="280" width="60" height="140" fill="none" stroke="white" strokeWidth="1"/>
+          <rect x="1060" y="280" width="60" height="140" fill="none" stroke="white" strokeWidth="1"/>
+          <path d="M 80 70 Q 100 70 100 90" fill="none" stroke="white" strokeWidth="1"/>
+          <path d="M 1120 70 Q 1100 70 1100 90" fill="none" stroke="white" strokeWidth="1"/>
+          <path d="M 80 630 Q 100 630 100 610" fill="none" stroke="white" strokeWidth="1"/>
+          <path d="M 1120 630 Q 1100 630 1100 610" fill="none" stroke="white" strokeWidth="1"/>
+          <circle cx="80" cy="40" r="7" fill="white"/>
+          <circle cx="280" cy="20" r="5" fill="white" opacity="0.7"/>
+          <circle cx="480" cy="12" r="6" fill="white" opacity="0.8"/>
+          <circle cx="600" cy="10" r="7" fill="white"/>
+          <circle cx="720" cy="12" r="6" fill="white" opacity="0.8"/>
+          <circle cx="920" cy="20" r="5" fill="white" opacity="0.7"/>
+          <circle cx="1120" cy="40" r="7" fill="white"/>
+          <line x1="80" y1="40" x2="250" y2="220" stroke="white" strokeWidth="0.6" opacity="0.4"/>
+          <line x1="1120" y1="40" x2="950" y2="220" stroke="white" strokeWidth="0.6" opacity="0.4"/>
+          <line x1="600" y1="10" x2="480" y2="200" stroke="white" strokeWidth="0.4" opacity="0.3"/>
+          <line x1="600" y1="10" x2="720" y2="200" stroke="white" strokeWidth="0.4" opacity="0.3"/>
+          <line x1="280" y1="20" x2="350" y2="200" stroke="white" strokeWidth="0.4" opacity="0.25"/>
+          <line x1="920" y1="20" x2="850" y2="200" stroke="white" strokeWidth="0.4" opacity="0.25"/>
+        </svg>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 30%, rgba(34,85,238,0.06) 0%, transparent 55%), radial-gradient(ellipse at 20% 70%, rgba(232,53,122,0.04) 0%, transparent 40%)" }} />
       </div>
 
-      <h1 className="text-5xl md:text-7xl font-black leading-[0.92] mb-4 tracking-tight">
-        Prode
-        <br />
-        Mundial
-        <br />
-        <span className="text-[#e8357a] drop-shadow-[0_0_20px_rgba(232,53,122,0.35)]">
-          BET
-        </span>
-        <span className="text-[#2255ee] drop-shadow-[0_0_20px_rgba(34,85,238,0.45)]">
-          30
-        </span>
-      </h1>
-
-      <p className="text-gray-300 text-base md:text-lg max-w-xl">
-        Viví el Mundial con pronósticos, ranking en vivo, premios y bonus por campeón elegido.
-      </p>
-
-      <p className="mt-3 text-gray-300">
-        Participá con una carga mínima de{" "}
-        <span className="text-orange-400 font-black">$25.000</span>
-      </p>
-
-      <div className="mt-6 flex flex-wrap gap-3">
-        <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 backdrop-blur-sm">
-          <p className="text-xs text-gray-400">Partidos</p>
-          <p className="text-2xl font-black text-orange-400">
-            {TOTAL_PARTIDOS_GRUPOS}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[#2255ee]/40 bg-[#2255ee]/10 px-4 py-3 backdrop-blur-sm">
-          <p className="text-xs text-gray-400">Cerrados</p>
-          <p className="text-2xl font-black text-[#7aa2ff]">
-            {partidosBloqueados}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 backdrop-blur-sm">
-          <p className="text-xs text-gray-400">Tus pronósticos</p>
-          <p className="text-2xl font-black text-yellow-400">
-            {pronosticosCargados}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[#e8357a]/40 bg-[#e8357a]/10 px-4 py-3 backdrop-blur-sm">
-          <p className="text-xs text-gray-400">Líder</p>
-          <p className="text-2xl font-black text-[#e8357a]">
-            {scores[0]?.points ?? 0} pts
-          </p>
-        </div>
+      {/* ── TOASTS ── */}
+      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none" }}>
+        {toasts.map((t) => (
+          <div key={t.id} style={{
+            padding: "12px 20px",
+            borderRadius: 10,
+            fontWeight: 700,
+            fontSize: 14,
+            backdropFilter: "blur(12px)",
+            border: `1px solid ${t.type === "success" ? "rgba(74,222,128,0.4)" : "rgba(232,53,122,0.4)"}`,
+            background: t.type === "success" ? "rgba(4,20,10,0.95)" : "rgba(20,4,10,0.95)",
+            color: t.type === "success" ? "#4ade80" : "#f87171",
+            boxShadow: `0 4px 24px ${t.type === "success" ? "rgba(74,222,128,0.15)" : "rgba(232,53,122,0.15)"}`,
+            animation: "slideIn 0.3s ease",
+          }}>
+            {t.message}
+          </div>
+        ))}
       </div>
-    </div>
 
-    <div className="relative flex justify-center md:justify-end">
-      <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle,rgba(255,196,0,0.24),transparent_58%)] blur-2xl" />
+      <style>{`
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
 
-      <div className="relative w-full max-w-[410px] rounded-[2rem] border border-white/10 bg-white/[0.055] p-3 backdrop-blur-md shadow-[0_0_38px_rgba(255,196,0,0.14)]">
-        <div className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40">
-          <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-black/5 to-black/20" />
-
-          <img
-            src={WORLD_CUP_TROPHY_IMAGE}
-            alt="Copa del Mundo BET30"
-            className="h-[360px] md:h-[430px] w-full object-cover"
-          />
-
-          <div className="absolute left-4 top-4 z-20 rounded-full border border-yellow-500/30 bg-black/45 px-3 py-2 backdrop-blur-md">
-            <p className="text-[10px] tracking-[0.28em] uppercase text-yellow-300">
-              Edición premium
-            </p>
+      {/* ── NAVBAR FIJA ── */}
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 100,
+        background: "rgba(6,6,10,0.92)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        backdropFilter: "blur(16px)",
+      }}>
+        <div className="max-w-screen-xl mx-auto px-4 md:px-6" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src={BET30_LOGO} alt="BET30" style={{ height: 28, width: "auto", objectFit: "contain" }} />
+            <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)" }} />
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.25em", textTransform: "uppercase", color: "#ffcc00" }}>Mundial 2026</span>
           </div>
 
-          <div className="absolute left-4 bottom-4 right-4 z-20">
-            <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-md shadow-[0_0_25px_rgba(0,0,0,0.35)]">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-orange-300">
-                Prode oficial
-              </p>
+          {/* Nav links desktop */}
+          <div className="hidden md:flex items-center gap-1">
+            {navItems.map(({ key, label }) => (
+              <button key={key} onClick={() => navegarA(key)} style={{
+                padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer",
+                background: tabActiva === key ? "rgba(255,119,34,0.15)" : "transparent",
+                color: tabActiva === key ? "#ff7722" : "#666",
+                borderBottom: tabActiva === key ? "2px solid #ff7722" : "2px solid transparent",
+              }}>
+                {label}
+              </button>
+            ))}
+          </div>
 
-              <p className="mt-1 text-2xl font-black text-white">
-                Camino al campeón
-              </p>
+          {/* Right side */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {playerId && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 6, background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.25)" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80" }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80" }}>{nombreVisible || "Jugador"}</span>
+              </div>
+            )}
+            {/* Hamburger */}
+            <button
+              onClick={() => setMenuAbierto(!menuAbierto)}
+              className="md:hidden"
+              style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}
+            >
+              <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(45deg) translate(5px, 5px)" : "none" }} />
+              <span style={{ width: 18, height: 2, background: menuAbierto ? "transparent" : "#fff", borderRadius: 2, transition: "all 0.2s" }} />
+              <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(-45deg) translate(5px, -5px)" : "none" }} />
+            </button>
+          </div>
+        </div>
 
-              <p className="text-sm text-gray-300">
-                Pronosticá, competí y peleá por el top del ranking.
-              </p>
+        {/* Dropdown mobile */}
+        {menuAbierto && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0,
+            background: "rgba(8,8,14,0.98)",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            backdropFilter: "blur(20px)",
+            padding: "12px 16px 20px",
+            zIndex: 99,
+          }}>
+            {navItems.map(({ key, label, desc }) => (
+              <button key={key} onClick={() => navegarA(key)} style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "12px 14px", borderRadius: 10, marginBottom: 6,
+                background: tabActiva === key ? "rgba(255,119,34,0.1)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${tabActiva === key ? "rgba(255,119,34,0.35)" : "rgba(255,255,255,0.06)"}`,
+                cursor: "pointer", textAlign: "left",
+              }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: tabActiva === key ? "#ff7722" : "#ccc" }}>{label}</div>
+                  <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{desc}</div>
+                </div>
+                {tabActiva === key && <span style={{ fontSize: 16, color: "#ff7722" }}>●</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </nav>
+
+      {/* ── HERO ── */}
+      <div style={{ position: "relative", zIndex: 1 }}>
+      <div className="relative overflow-hidden bg-[#06060a]">
+        <div className="absolute top-0 left-0 right-0 h-[3px] z-30" style={{ background: "linear-gradient(90deg, #e8357a, #ff9500, #ffcc00, #2255ee)" }} />
+        <div className="absolute inset-0 z-0">
+          <img src="/og-image.png" alt="" className="w-full h-full object-cover object-center" style={{ opacity: 0.08 }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #06060a, rgba(6,6,10,0.85), rgba(6,6,10,0.3))" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(6,6,10,0.7), transparent, #06060a)" }} />
+        </div>
+        <div className="absolute inset-0 z-0 pointer-events-none" style={{ opacity: 0.03 }}>
+          <svg className="w-full h-full" viewBox="0 0 1200 560" preserveAspectRatio="xMidYMid slice">
+            {[60,160,270,370,470].map((y, i) => (<line key={i} x1="0" y1={y} x2="1200" y2={y+50} stroke="white" strokeWidth={i%2===0?"1":"0.5"} />))}
+            {[150,420,700,950].map((x, i) => (<line key={i} x1={x} y1="0" x2={x+80} y2="560" stroke="white" strokeWidth="0.5" />))}
+          </svg>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] z-20" style={{ background: "linear-gradient(90deg, transparent, #16a34a, #22c55e, #16a34a, transparent)" }} />
+
+        <div className="relative z-10 w-full max-w-screen-xl mx-auto px-4 md:px-6">
+          <div className="grid md:grid-cols-[1fr_400px] min-h-[480px] w-full items-stretch">
+            <div className="flex flex-col justify-between py-10 pr-0 md:pr-8">
+              <div>
+                <div className="flex items-center gap-3 mb-6 flex-wrap">
+                  <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>
+                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: "0.05em" }}>
+                      <span style={{ color: "#e8357a" }}>BET</span><span style={{ color: "#2255ee" }}>30</span>
+                    </span>
+                  </div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", border: "1px solid rgba(232,53,122,0.4)", borderRadius: 4, background: "rgba(232,53,122,0.08)" }}>
+                    <span className="w-2 h-2 rounded-full bg-[#e8357a] animate-pulse" />
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase", color: "#e8357a" }}>Ranking en vivo</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div style={{ width: 28, height: 2, background: "#ffcc00" }} />
+                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.4em", textTransform: "uppercase", color: "#ffcc00" }}>Mundial 2026</span>
+                </div>
+                <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", lineHeight: 0.88, marginBottom: 20 }}>
+                  <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "#ffffff" }}>PRODE</span>
+                  <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "transparent", WebkitTextStroke: "2.5px #e8357a" } as React.CSSProperties}>MUNDIAL</span>
+                  <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "#2255ee" }}>BET30</span>
+                </h1>
+                <p style={{ color: "#888", fontSize: 15, maxWidth: 400, lineHeight: 1.6, marginBottom: 8 }}>Pronosticá cada partido, elegí el campeón y peleá por el podio.</p>
+                <p style={{ color: "#bbb", fontSize: 14, marginBottom: 32 }}>
+                  Participá con carga mínima de <span style={{ color: "#ff7722", fontWeight: 800 }}>$25.000</span>
+                </p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, overflow: "hidden", background: "rgba(255,255,255,0.02)" }}>
+                {[
+                  { label: "Partidos",    value: String(TOTAL_PARTIDOS_GRUPOS), color: "#ff7722" },
+                  { label: "Cerrados",    value: String(partidosBloqueados),    color: "#4f8cff" },
+                  { label: "Pronósticos", value: String(pronosticosCargados),   color: "#ffcc00" },
+                  { label: "Líder",       value: `${scores[0]?.points ?? 0}`,   color: "#e8357a", unit: "pts" },
+                ].map(({ label, value, color, unit }, i) => (
+                  <div key={label} style={{ padding: "14px 10px", textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#444", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, lineHeight: 1, color }}>
+                      {value}{unit && <span style={{ fontSize: 14, marginLeft: 3 }}>{unit}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative hidden md:flex flex-col justify-between overflow-hidden" style={{ borderLeft: "1px solid rgba(255,255,255,0.05)" }}>
+              <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(255,196,0,0.12) 0%, transparent 65%)" }} />
+              <img src={WORLD_CUP_2030_LOGO} alt="Copa del Mundo" className="absolute inset-0 w-full h-full object-cover object-center" style={{ opacity: 0.95, mixBlendMode: "luminosity" }} />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #06060a 0%, transparent 35%)" }} />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #06060a 0%, #06060a 18%, transparent 42%, transparent 72%, #06060a 100%)" }} />
+              <div className="relative z-10 mt-auto mx-5 mb-5" style={{ background: "rgba(4,4,10,0.88)", border: "1px solid rgba(255,255,255,0.07)", borderTop: "2px solid #ffcc00", borderRadius: "0 0 10px 10px", padding: "16px 18px", backdropFilter: "blur(12px)" }}>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.3em", textTransform: "uppercase", color: "#ffcc00", marginBottom: 12 }}>Premios</div>
+                {[["🥇","1° Puesto","$700.000"],["🥈","2° Puesto","$200.000"],["🥉","3° Puesto","$100.000"]].map(([m,pos,amt]) => (
+                  <div key={pos} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <span style={{ fontSize: 13, marginRight: 8 }}>{m}</span>
+                    <span style={{ flex: 1, fontSize: 13, color: "#bbb" }}>{pos}</span>
+                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "#ffcc00" }}>{amt}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  {[["8 pts","Resultado exacto"],["3 pts","Ganador / empate"],["+2 pts","Dif. de goles"],["+15 pts","Campeón correcto"]].map(([pts,desc]) => (
+                    <div key={desc} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#ff7722", whiteSpace: "nowrap" }}>{pts}</span>
+                      <span style={{ fontSize: 11, color: "#555", lineHeight: 1.3 }}>{desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
+      </div>{/* end hero z-index wrapper */}
 
-<div className="mb-6 overflow-hidden rounded-2xl border border-[#7c3aed]/70 bg-[#0b0b12] shadow-[0_0_30px_rgba(124,58,237,0.18)]">
-  <div className="grid grid-cols-3">
-    <button
-      onClick={() => setTabActiva("grupos")}
-      className={`p-4 font-black text-sm md:text-lg transition ${
-        tabActiva === "grupos"
-          ? "bg-[#e8357a]/15 text-[#e8357a] border-b-4 border-[#e8357a]"
-          : "text-gray-300 hover:bg-white/5"
-      }`}
-    >
-      ⚽ Fase de grupos
-    </button>
+      {/* ── CONTENIDO PRINCIPAL ── */}
+      <div id="contenido-principal" style={{ position: "relative", zIndex: 1 }} className="max-w-screen-xl mx-auto px-4 md:px-6 py-6 space-y-5">
 
-    <button
-      onClick={() => setTabActiva("eliminatorias")}
-      className={`p-4 font-black text-sm md:text-lg transition ${
-        tabActiva === "eliminatorias"
-          ? "bg-[#2255ee]/15 text-[#4f8cff] border-b-4 border-[#2255ee]"
-          : "text-gray-300 hover:bg-white/5"
-      }`}
-    >
-      🏆 Eliminatorias
-    </button>
-
-    <button
-      onClick={() => setTabActiva("ranking")}
-      className={`p-4 font-black text-sm md:text-lg transition ${
-        tabActiva === "ranking"
-          ? "bg-yellow-500/15 text-yellow-400 border-b-4 border-yellow-400"
-          : "text-gray-300 hover:bg-white/5"
-      }`}
-    >
-      📊 Ranking
-    </button>
-  </div>
-</div>
-
-{tabActiva === "grupos" && proximoPartido && (
-  <div className="mb-6 rounded-2xl border border-orange-500/60 bg-gradient-to-r from-[#1b1b25] to-[#10101a] p-5 shadow-[0_0_26px_rgba(249,115,22,0.16)]">
-    <div className="grid gap-4 md:grid-cols-[1fr_220px] md:items-center">
-      <div>
-        <p className="text-xs tracking-[0.35em] uppercase text-orange-400 mb-2">
-          Próximo partido
-        </p>
-
-        <div className="flex flex-col gap-2 text-xl md:text-2xl font-black">
-          <BanderaEquipo equipo={proximoPartido.home_team} />
-          <span className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
-            VS
-          </span>
-          <BanderaEquipo equipo={proximoPartido.away_team} />
+        {/* TAB BAR DESKTOP */}
+        <div className="hidden md:block" style={{ borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)", background: "#0a0a10" }}>
+          <div className="grid grid-cols-5">
+            {navItems.map(({ key, label }) => {
+              const colors: Record<string, string> = { grupos: "#e8357a", eliminatorias: "#4f8cff", ranking: "#ffcc00", reglas: "#22c55e", miperfil: "#a78bfa" };
+              const ac = colors[key];
+              return (
+                <button key={key} onClick={() => setTabActiva(key)} style={{
+                  padding: "13px 8px", fontWeight: 800, fontSize: 13, transition: "color 0.2s, background 0.2s",
+                  borderTop: "none", borderLeft: "none", borderRight: "none",
+                  borderBottom: `3px solid ${tabActiva === key ? ac : "transparent"}`,
+                  color: tabActiva === key ? ac : "#555",
+                  background: tabActiva === key ? `${ac}15` : "transparent",
+                  cursor: "pointer",
+                } as React.CSSProperties}>{label}</button>
+              );
+            })}
+          </div>
         </div>
 
-        <p className="mt-3 text-yellow-400 font-bold">
-          🕒 {formatearFecha(proximoPartido.match_date)}
-        </p>
-      </div>
+        {/* TAB BAR MOBILE — solo las 3 principales */}
+        <div className="md:hidden" style={{ borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)", background: "#0a0a10" }}>
+          <div className="grid grid-cols-3">
+            {navItems.slice(0, 3).map(({ key, label }) => {
+              const colors: Record<string, string> = { grupos: "#e8357a", eliminatorias: "#4f8cff", ranking: "#ffcc00" };
+              const ac = colors[key] ?? "#ff7722";
+              return (
+                <button key={key} onClick={() => setTabActiva(key)} style={{
+                  padding: "12px 6px", fontWeight: 800, fontSize: 12, transition: "color 0.2s, background 0.2s",
+                  borderTop: "none", borderLeft: "none", borderRight: "none",
+                  borderBottom: `3px solid ${tabActiva === key ? ac : "transparent"}`,
+                  color: tabActiva === key ? ac : "#555",
+                  background: tabActiva === key ? `${ac}15` : "transparent",
+                  cursor: "pointer",
+                } as React.CSSProperties}>{label}</button>
+              );
+            })}
+          </div>
+        </div>
 
-      <div className="rounded-2xl border border-yellow-500/50 bg-yellow-500/10 p-4 text-center">
-        <p className="text-sm text-gray-300">Cuenta regresiva</p>
-        <p className="text-3xl font-black text-yellow-400">
-          {cuentaRegresiva(proximoPartido.match_date, ahora)}
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+        {/* PRÓXIMO PARTIDO */}
+        {(tabActiva === "grupos") && proximoPartido && (
+          <div style={{ borderRadius: 14, border: "1px solid rgba(255,119,34,0.3)", background: "linear-gradient(135deg,#0f0f16,#0d0d14)", padding: "20px 24px" }}>
+            <div className="grid md:grid-cols-[1fr_200px] gap-4 items-center">
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.3em", textTransform: "uppercase", color: "#ff7722", marginBottom: 12 }}>Próximo partido</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 17, fontWeight: 800 }}><BanderaEquipo equipo={proximoPartido.home_team} /></div>
+                  <div style={{ width: "fit-content", background: "#ff7722", color: "#000", fontSize: 10, fontWeight: 900, padding: "3px 10px", borderRadius: 4 }}>VS</div>
+                  <div style={{ fontSize: 17, fontWeight: 800 }}><BanderaEquipo equipo={proximoPartido.away_team} /></div>
+                </div>
+                <div style={{ marginTop: 10, fontSize: 13, color: "#ffcc00", fontWeight: 700 }}>🕒 {formatearFecha(proximoPartido.match_date)}</div>
+              </div>
+              <div style={{ background: "rgba(255,204,0,0.05)", border: "1px solid rgba(255,204,0,0.2)", borderRadius: 12, padding: "18px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>Cuenta regresiva</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, color: "#ffcc00", lineHeight: 1 }}>{cuentaRegresiva(proximoPartido.match_date, ahora)}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
-<div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
-  <h2 className="text-xl font-black mb-2">Ingresar al Prode</h2>
-
-  {!playerId ? (
-    <div className="space-y-3">
-      <p className="text-sm text-gray-400">
-        Ingresá tu usuario BET30 para validar el acceso y un nombre o apodo para aparecer en el ranking.
-      </p>
-
-      <input
-        className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
-        placeholder="Usuario BET30"
-        value={usuario}
-        onChange={(e) => setUsuario(e.target.value)}
-      />
-
-      <input
-        className="w-full p-3 rounded bg-[#1b1b25] border border-zinc-700 text-white outline-none focus:ring-2 focus:ring-orange-400"
-        placeholder="Nombre o apodo para el ranking"
-        value={nombreVisible}
-        onChange={(e) => setNombreVisible(e.target.value)}
-      />
-
-      <button
-        onClick={registrarse}
-        className="w-full bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-black p-3 rounded hover:scale-[1.01] transition"
-      >
-        Ingresar
-      </button>
-    </div>
-  ) : (
-    <div className="text-center">
-      <p className="text-green-400 font-bold">
-        ✅ Conectado como {nombreVisible || "Jugador"}
-      </p>
-
-      <p className="text-xs text-gray-500 mt-1">
-        Usuario BET30 guardado de forma privada.
-      </p>
-
-      <button
-        onClick={cerrarSesion}
-        className="mt-4 w-full bg-red-500 text-white font-bold p-3 rounded"
-      >
-        Cerrar sesión
-      </button>
-    </div>
-  )}
-
-  {mensaje && (
-    <p className="text-center text-orange-300 font-bold mt-4">
-      {mensaje}
-    </p>
-  )}
-</div>
-          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-            <div>
-              <p className="text-xs tracking-[0.35em] uppercase text-yellow-400 mb-2">
-                Bonus especial
-              </p>
-
-              <h2 className="text-2xl md:text-3xl font-black mb-2">
-                Elegí al campeón del Mundial
-              </h2>
-
-              <p className="text-sm text-gray-300 mb-4">
-                Si acertás el campeón sumás{" "}
-                <span className="text-yellow-400 font-black">+15 puntos</span> al ranking.
-              </p>
-
-              <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center">
-                <select
-                  value={campeon}
-                  onChange={(e) => setCampeon(e.target.value)}
-                  className="w-full p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white outline-none focus:ring-2 focus:ring-yellow-400"
-                >
-                  <option value="">Seleccionar campeón</option>
-                  {TEAMS.map((team) => (
-                    <option key={team} value={team}>
-                      {team}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={guardarCampeon}
-                  disabled={!playerId}
-                  className={`font-black p-3 rounded transition ${
-                    playerId
-                      ? "bg-yellow-500 text-black hover:bg-orange-400"
-                      : "bg-gray-600 text-gray-300 cursor-not-allowed"
-                  }`}
-                >
-                  {playerId ? "Guardar campeón" : "Iniciá sesión para guardar"}
+        {/* MI PERFIL / INGRESAR */}
+        {(tabActiva === "grupos" || tabActiva === "miperfil") && (
+          <div style={{ borderRadius: 14, border: "1px solid rgba(124,58,237,0.4)", background: "#0d0d14", padding: "22px 24px" }}>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: "0.05em", marginBottom: 6 }}>
+              {tabActiva === "miperfil" ? "Mi perfil" : "Ingresar al Prode"}
+            </h2>
+            {!playerId ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p style={{ fontSize: 13, color: "#555", marginBottom: 4 }}>Ingresá tu usuario BET30 para validar el acceso y un nombre para el ranking.</p>
+                <input style={{ width: "100%", padding: "12px 14px", borderRadius: 8, background: "#111118", border: "1px solid #222230", color: "#fff", fontSize: 14, outline: "none" }}
+                  placeholder="Usuario BET30" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
+                <input style={{ width: "100%", padding: "12px 14px", borderRadius: 8, background: "#111118", border: "1px solid #222230", color: "#fff", fontSize: 14, outline: "none" }}
+                  placeholder="Nombre o apodo para el ranking" value={nombreVisible} onChange={(e) => setNombreVisible(e.target.value)} />
+                <button onClick={registrarse} style={{ width: "100%", padding: "13px", borderRadius: 8, background: "linear-gradient(90deg,#ff7722,#ffcc00)", color: "#000", fontWeight: 900, fontSize: 15, border: "none", cursor: "pointer" }}>
+                  Ingresar
                 </button>
               </div>
+            ) : (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px", borderRadius: 10, background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.2)", marginBottom: 16 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(74,222,128,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>👤</div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#4ade80" }}>{nombreVisible || "Jugador"}</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>Usuario BET30 · sesión activa</div>
+                  </div>
+                  {campeonGuardado && (
+                    <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                      <div style={{ fontSize: 10, color: "#666", marginBottom: 4 }}>Campeón elegido</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}><BanderaEquipo equipo={campeonGuardado} size="sm" /></div>
+                    </div>
+                  )}
+                </div>
+                <button onClick={cerrarSesion} style={{ padding: "10px 24px", borderRadius: 8, background: "rgba(232,53,122,0.1)", color: "#e8357a", fontWeight: 800, border: "1px solid rgba(232,53,122,0.3)", cursor: "pointer", fontSize: 14 }}>
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
+        {/* CAMPEÓN */}
+        {(tabActiva === "grupos" || tabActiva === "miperfil") && (
+          <div className="grid lg:grid-cols-[1fr_300px] gap-4">
+            <div style={{ borderRadius: 14, border: "1px solid rgba(255,204,0,0.2)", background: "#0d0d14", padding: "22px 24px" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.35em", textTransform: "uppercase", color: "#ffcc00", marginBottom: 8 }}>Bonus especial</div>
+              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, letterSpacing: "0.03em", marginBottom: 8 }}>Elegí al campeón del Mundial</h2>
+              <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
+                Si acertás el campeón sumás <span style={{ color: "#ffcc00", fontWeight: 800 }}>+15 puntos</span> al ranking.
+              </p>
+              <div className="grid md:grid-cols-[1fr_200px] gap-3">
+                <select value={campeon} onChange={(e) => setCampeon(e.target.value)}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 8, background: "#111118", border: "1px solid #222230", color: "#fff", fontSize: 14, outline: "none" }}>
+                  <option value="">Seleccionar campeón</option>
+                  {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <button onClick={guardarCampeon} disabled={!playerId} style={{
+                  padding: "12px 16px", borderRadius: 8, fontWeight: 900, fontSize: 14, border: "none",
+                  cursor: playerId ? "pointer" : "not-allowed",
+                  background: playerId ? "#ffcc00" : "#1a1a22", color: playerId ? "#000" : "#444",
+                }}>
+                  {playerId ? "Guardar campeón" : "Iniciá sesión primero"}
+                </button>
+              </div>
               {campeonGuardado && (
-                <p className="mt-4 text-green-400 font-bold">
-                  Campeón elegido: <BanderaEquipo equipo={campeonGuardado} />
-                </p>
-              )}
-
-              {!playerId && (
-                <p className="mt-4 text-orange-300 font-bold">
-                  Primero ingresá con tu usuario BET30 para guardar tu campeón.
-                </p>
+                <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.2)" }}>
+                  <span style={{ fontSize: 13, color: "#4ade80", fontWeight: 700 }}>✅ Campeón guardado:</span>
+                  <BanderaEquipo equipo={campeonGuardado} size="sm" />
+                </div>
               )}
             </div>
-
-            <div className="rounded-2xl border border-yellow-500/30 bg-black/20 p-4">
-              <p className="font-black text-yellow-400 mb-3">Más elegidos</p>
-
+            <div style={{ borderRadius: 14, border: "1px solid rgba(255,204,0,0.18)", background: "#0d0d14", padding: "22px 20px" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#ffcc00", marginBottom: 14 }}>🔥 Más elegidos</div>
               {championStats.length === 0 ? (
-                <p className="text-sm text-gray-400">
-                  Todavía no hay campeones elegidos.
-                </p>
+                <p style={{ fontSize: 13, color: "#444" }}>Todavía no hay campeones elegidos.</p>
               ) : (
-                <div className="space-y-3">
-                  {championStats.map((stat, index) => (
-                    <div
-                      key={stat.champion}
-                      className="flex items-center justify-between rounded-xl border border-zinc-700 bg-[#111118] p-3"
-                    >
-                      <div className="font-bold">
-                        #{index + 1} <BanderaEquipo equipo={stat.champion} />
-                      </div>
-                      <p className="text-yellow-400 font-black">{stat.count}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {championStats.map((stat, i) => (
+                    <div key={stat.champion} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "#111118", border: "1px solid #1e1e28" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>#{i+1} <BanderaEquipo equipo={stat.champion} size="sm" /></div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#ffcc00" }}>{stat.count}</div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
+        )}
 
+        {/* TAB GRUPOS */}
         {tabActiva === "grupos" && (
           <>
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(34,85,238,0.15)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-black text-orange-400">Top Prode</h2>
-
-                  <button
-                    onClick={() => setTabActiva("ranking")}
-                    className="text-sm bg-[#2255ee] px-3 py-2 rounded font-bold hover:bg-[#e8357a] transition"
-                  >
-                    Ver ranking completo
+            <div className="grid md:grid-cols-2 gap-4">
+              <div style={{ borderRadius: 14, border: "1px solid rgba(124,58,237,0.35)", background: "#0d0d14", padding: "20px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#ff7722", letterSpacing: "0.04em" }}>Top Prode</h2>
+                  <button onClick={() => setTabActiva("ranking")} style={{ fontSize: 12, fontWeight: 800, padding: "6px 14px", borderRadius: 6, background: "#2255ee", color: "#fff", border: "none", cursor: "pointer" }}>
+                    Ver completo
                   </button>
                 </div>
-
-                <div className="space-y-3">
-                  {scores.length === 0 && (
-                    <p className="text-gray-400">Todavía no hay puntos cargados.</p>
-                  )}
-
-                  {scores.slice(0, 3).map((score, index) => (
-                    <div
-                      key={score.id}
-                      className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
-                    >
-                      <div>
-                        <p className="font-black text-lg">
-                          {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
-                        </p>
-                      </div>
-
-                      <p className="text-[#ffcc00] font-black text-xl">
-                        {score.points} pts
-                      </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {scores.length === 0 && <p style={{ fontSize: 13, color: "#444" }}>Todavía no hay puntos cargados.</p>}
+                  {scores.slice(0, 3).map((score, i) => (
+                    <div key={score.id} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "12px 14px", borderRadius: 10, border: "1px solid",
+                      borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":"rgba(249,115,22,0.3)",
+                      background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":"rgba(249,115,22,0.04)",
+                    }}>
+                      <span style={{ fontWeight: 800, fontSize: 15, display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i===0?"#ffcc00":i===1?"#aaa":"#cd7c3a", minWidth: 28 }}>{medallaRanking(i)}</span>
+                        {score.players?.full_name ?? "Sin nombre"}
+                      </span>
+                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#ffcc00" }}>{score.points} pts</span>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <div className="bg-[#111118] border border-[#e8357a] p-5 md:p-6 rounded-2xl shadow-[0_0_25px_rgba(232,53,122,0.18)]">
-                <h2 className="text-xl font-black mb-4 text-[#e8357a]">Premios</h2>
-
-                <div className="space-y-3 text-base md:text-lg">
-                  <p>
-                    🥇 1° Puesto: <span className="font-bold text-[#ffcc00]">$700.000</span>
-                  </p>
-                  <p>
-                    🥈 2° Puesto: <span className="font-bold text-[#ffcc00]">$200.000</span>
-                  </p>
-                  <p>
-                    🥉 3° Puesto: <span className="font-bold text-[#ffcc00]">$100.000</span>
-                  </p>
+              <div style={{ borderRadius: 14, border: "1px solid rgba(232,53,122,0.35)", background: "#0d0d14", padding: "20px 22px" }}>
+                <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#e8357a", letterSpacing: "0.04em", marginBottom: 16 }}>Premios</h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[["1° Puesto","$700.000"],["2° Puesto","$200.000"],["3° Puesto","$100.000"]].map(([pos,amt]) => (
+                    <div key={pos} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15 }}>
+                      <span style={{ color: "#bbb" }}>{pos}</span>
+                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#ffcc00" }}>{amt}</span>
+                    </div>
+                  ))}
                 </div>
-
-                <div className="mt-6 border-t border-white/10 pt-4 text-sm">
-                  <h3 className="font-bold mb-2 text-orange-400">Sistema de puntos</h3>
-                  <p>Resultado exacto: 8 pts</p>
-                  <p>Ganador/empate correcto: 3 pts</p>
-                  <p>Diferencia de gol correcta: +2 pts</p>
-                  <p>Campeón correcto: +15 pts</p>
+                <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: 13 }}>
+                  <div style={{ fontWeight: 800, color: "#ff7722", marginBottom: 8 }}>Sistema de puntos</div>
+                  {["Resultado exacto: 8 pts","Ganador/empate correcto: 3 pts","Diferencia de gol correcta: +2 pts","Campeón correcto: +15 pts"].map((l) => (
+                    <div key={l} style={{ color: "#555", marginBottom: 3 }}>{l}</div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#111118] border border-zinc-700 p-5 md:p-6 rounded-2xl">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                <h2 className="text-2xl font-black">Fixture y pronósticos</h2>
-
-                <button
-                  onClick={guardarTodosLosPronosticos}
-                  className="bg-gradient-to-r from-[#e8357a] to-[#2255ee] text-white font-black px-5 py-3 rounded hover:scale-[1.02] transition"
-                >
+            <div style={{ borderRadius: 14, border: "1px solid #1a1a24", background: "rgba(10,10,16,0.85)", padding: "20px 22px", backdropFilter: "blur(8px)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+                <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: "0.04em" }}>Fixture y pronósticos</h2>
+                <button onClick={guardarTodosLosPronosticos} style={{ padding: "11px 22px", borderRadius: 8, background: "linear-gradient(90deg,#e8357a,#2255ee)", color: "#fff", fontWeight: 900, fontSize: 14, border: "none", cursor: "pointer" }}>
                   Guardar todos
                 </button>
               </div>
-
-              <div className="space-y-5">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {partidosPorGrupo.map(([grupo, partidos]) => {
                   const abierto = gruposAbiertos[grupo] ?? false;
-
                   return (
-                    <div
-                      key={grupo}
-                      className="border border-zinc-700 rounded-2xl overflow-hidden bg-[#0f0f16]"
-                    >
-                      <button
-                        onClick={() => toggleGrupo(grupo)}
-                        className="w-full flex items-center justify-between p-4 bg-[#1b1b25] hover:bg-[#242435] transition"
-                      >
+                    <div key={grupo} style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #1a1a24" }}>
+                      {/* Grupo header con acento izquierdo */}
+                      <button onClick={() => toggleGrupo(grupo)} style={{
+                        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "14px 18px", cursor: "pointer", border: "none",
+                        background: abierto
+                          ? "linear-gradient(90deg, rgba(255,119,34,0.08), rgba(255,119,34,0.02), transparent)"
+                          : "rgba(255,255,255,0.015)",
+                        borderLeft: abierto ? "3px solid #ff7722" : "3px solid rgba(255,255,255,0.06)",
+                      }}>
                         <div>
-                          <p className="text-orange-400 font-black text-lg">
+                          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 17, letterSpacing: "0.06em", color: abierto ? "#ff7722" : "#555" }}>
                             {abierto ? "▼" : "▶"} {grupo}
-                          </p>
-                          <p className="text-sm text-gray-400">
-                            {partidos.length} partidos
-                          </p>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#444", marginTop: 2, fontWeight: 600, letterSpacing: "0.05em" }}>{partidos.length} partidos</div>
                         </div>
-
-                        <span className="text-[#ffcc00] font-black">
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#ffcc00", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                           {abierto ? "Ocultar" : "Ver partidos"}
                         </span>
                       </button>
 
                       {abierto && (
-                        <div className="space-y-4 p-4">
+                        <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6, background: "rgba(0,0,0,0.2)" }}>
                           {partidos.map((match) => {
                             const bloqueado = partidoBloqueado(match);
-
                             return (
-                              <div
-                                key={match.id}
-                                className="bg-[#1b1b25] border border-zinc-700 p-4 rounded-xl grid md:grid-cols-5 gap-3 items-center"
-                              >
-                                <div className="md:col-span-2">
-                                  <p className="text-xs text-orange-300 uppercase font-bold">
-                                    {match.phase}
-                                  </p>
+                              <div key={match.id} style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 160px 1fr",
+                                alignItems: "center",
+                                borderRadius: 10,
+                                overflow: "hidden",
+                                border: `1px solid ${bloqueado ? "#161620" : "#1e1e2a"}`,
+                                background: bloqueado ? "rgba(8,8,12,0.6)" : "rgba(14,14,22,0.9)",
+                                opacity: bloqueado ? 0.65 : 1,
+                                position: "relative",
+                              }}>
+                                {/* Línea top sutil */}
+                                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: bloqueado ? "transparent" : "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)" }} />
 
-                                  <div className="space-y-2">
-                                    <div className="font-black text-white">
-                                      <BanderaEquipo equipo={match.home_team} />
-                                    </div>
-
-                                    <div className="w-fit rounded bg-orange-500 px-2 py-1 text-xs font-black text-black">
-                                      VS
-                                    </div>
-
-                                    <div className="font-black text-white">
-                                      <BanderaEquipo equipo={match.away_team} />
-                                    </div>
+                                {/* Equipo local */}
+                                <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+                                  {FLAG_CODES[match.home_team] && (
+                                    <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.home_team]}.png`} alt={match.home_team}
+                                      style={{ width: 28, height: 20, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
+                                  )}
+                                  <div>
+                                    <div style={{ fontSize: 9, color: "#ff7722", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>Local</div>
+                                    <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd", whiteSpace: "nowrap" }}>{match.home_team}</div>
                                   </div>
+                                </div>
 
-                                  <p className="text-[#ffcc00] text-sm font-bold mt-1">
-                                    🕒 {formatearFecha(match.match_date)}
-                                  </p>
-
-                                  {bloqueado && (
-                                    <p className="text-red-400 text-sm mt-1">
-                                      🔒 Pronóstico cerrado
-                                    </p>
+                                {/* Scoreboard central */}
+                                <div style={{
+                                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                                  padding: "12px 8px", gap: 6,
+                                  background: "rgba(0,0,0,0.3)",
+                                  borderLeft: "1px solid #1a1a24", borderRight: "1px solid #1a1a24",
+                                  height: "100%",
+                                }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <input
+                                      disabled={bloqueado}
+                                      type="number" min="0" placeholder="—"
+                                      value={predictions[match.id]?.home ?? ""}
+                                      onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: e.target.value, away: prev[match.id]?.away ?? "" } }))}
+                                      style={{
+                                        width: 48, height: 44,
+                                        background: bloqueado ? "#0a0a10" : "#111118",
+                                        border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
+                                        borderRadius: 6, textAlign: "center",
+                                        fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
+                                        color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
+                                      }}
+                                    />
+                                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#333", lineHeight: 1 }}>—</span>
+                                    <input
+                                      disabled={bloqueado}
+                                      type="number" min="0" placeholder="—"
+                                      value={predictions[match.id]?.away ?? ""}
+                                      onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: prev[match.id]?.home ?? "", away: e.target.value } }))}
+                                      style={{
+                                        width: 48, height: 44,
+                                        background: bloqueado ? "#0a0a10" : "#111118",
+                                        border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
+                                        borderRadius: 6, textAlign: "center",
+                                        fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
+                                        color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
+                                      }}
+                                    />
+                                  </div>
+                                  <div style={{ fontSize: 10, color: "#444", fontWeight: 600, textAlign: "center" }}>
+                                    {formatearFecha(match.match_date)}
+                                  </div>
+                                  {bloqueado ? (
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: "#e8357a", letterSpacing: "0.08em", textTransform: "uppercase" }}>Cerrado</div>
+                                  ) : (
+                                    <button onClick={() => guardarPronostico(match.id)} style={{
+                                      padding: "6px 14px", borderRadius: 6,
+                                      background: "linear-gradient(135deg,#ff7722,#ffcc00)",
+                                      color: "#000", fontSize: 11, fontWeight: 900, border: "none",
+                                      cursor: "pointer", letterSpacing: "0.05em", textTransform: "uppercase",
+                                    }}>
+                                      Guardar
+                                    </button>
                                   )}
                                 </div>
 
-                                <input
-                                  disabled={bloqueado}
-                                  className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#e8357a] disabled:bg-gray-700 disabled:text-gray-400"
-                                  type="number"
-                                  min="0"
-                                  placeholder="Local"
-                                  value={predictions[match.id]?.home ?? ""}
-                                  onChange={(e) =>
-                                    setPredictions((prev) => ({
-                                      ...prev,
-                                      [match.id]: {
-                                        home: e.target.value,
-                                        away: prev[match.id]?.away ?? "",
-                                      },
-                                    }))
-                                  }
-                                />
+                                {/* Equipo visitante */}
+                                <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexDirection: "row-reverse" }}>
+                                  {FLAG_CODES[match.away_team] && (
+                                    <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.away_team]}.png`} alt={match.away_team}
+                                      style={{ width: 28, height: 20, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
+                                  )}
+                                  <div style={{ textAlign: "right" }}>
+                                    <div style={{ fontSize: 9, color: "#4f8cff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>Visitante</div>
+                                    <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd", whiteSpace: "nowrap" }}>{match.away_team}</div>
+                                  </div>
+                                </div>
 
-                                <input
-                                  disabled={bloqueado}
-                                  className="p-3 rounded bg-[#0f0f16] border border-zinc-600 text-white text-center font-black outline-none focus:ring-2 focus:ring-[#2255ee] disabled:bg-gray-700 disabled:text-gray-400"
-                                  type="number"
-                                  min="0"
-                                  placeholder="Visitante"
-                                  value={predictions[match.id]?.away ?? ""}
-                                  onChange={(e) =>
-                                    setPredictions((prev) => ({
-                                      ...prev,
-                                      [match.id]: {
-                                        home: prev[match.id]?.home ?? "",
-                                        away: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-
-                                <button
-                                  disabled={bloqueado}
-                                  onClick={() => guardarPronostico(match.id)}
-                                  className={`font-black p-3 rounded ${
-                                    bloqueado
-                                      ? "bg-gray-600 text-white cursor-not-allowed"
-                                      : "bg-orange-500 text-black hover:bg-yellow-400"
-                                  }`}
-                                >
-                                  {bloqueado ? "🔒 Cerrado" : "Guardar"}
-                                </button>
                               </div>
                             );
                           })}
+
+                          {/* TABLA DE POSICIONES DEL GRUPO */}
+                          {(() => {
+                            const tabla = standings
+                              .filter(s => s.group_name === grupo)
+                              .sort((a, b) => b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against));
+                            if (tabla.length === 0) return null;
+                            return (
+                              <div style={{ marginTop: 8, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(34,197,94,0.2)" }}>
+                                <div style={{
+                                  padding: "10px 16px",
+                                  background: "linear-gradient(90deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02), transparent)",
+                                  borderLeft: "3px solid #22c55e",
+                                  display: "flex", alignItems: "center", gap: 8,
+                                }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+                                  </svg>
+                                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "#22c55e" }}>
+                                    Tabla de posiciones
+                                  </span>
+                                </div>
+                                <div style={{ background: "rgba(0,0,0,0.3)", overflowX: "auto" }}>
+                                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: "1px solid #1a1a24" }}>
+                                        <th style={{ textAlign: "left", padding: "8px 14px", color: "#555", fontWeight: 700, fontSize: 10, letterSpacing: "0.1em" }}>Equipo</th>
+                                        {["PJ","G","E","P","GF","GC","DG"].map(h => (
+                                          <th key={h} style={{ textAlign: "center", padding: "8px 8px", color: "#555", fontWeight: 700, fontSize: 10, letterSpacing: "0.1em" }}>{h}</th>
+                                        ))}
+                                        <th style={{ textAlign: "center", padding: "8px 10px", color: "#ffcc00", fontWeight: 800, fontSize: 10, letterSpacing: "0.1em" }}>Pts</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {tabla.map((s, i) => (
+                                        <tr key={s.id} style={{
+                                          borderBottom: "1px solid rgba(255,255,255,0.03)",
+                                          background: i === 0 ? "rgba(34,197,94,0.07)" : i === 1 ? "rgba(34,197,94,0.03)" : "transparent",
+                                        }}>
+                                          <td style={{ padding: "9px 14px" }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                              <span style={{ fontSize: 11, color: i < 2 ? "#22c55e" : "#444", fontWeight: 800, minWidth: 16 }}>{i + 1}</span>
+                                              {FLAG_CODES[s.team] && (
+                                                <img src={`https://flagcdn.com/w40/${FLAG_CODES[s.team]}.png`} alt={s.team}
+                                                  style={{ width: 22, height: 16, borderRadius: 2, objectFit: "cover", border: "1px solid rgba(255,255,255,0.08)" }} />
+                                              )}
+                                              <span style={{ fontWeight: 700, color: "#ccc", whiteSpace: "nowrap" }}>{s.team}</span>
+                                            </div>
+                                          </td>
+                                          {[s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against, s.goals_for - s.goals_against].map((v, vi) => (
+                                            <td key={vi} style={{ textAlign: "center", padding: "9px 8px", color: "#777" }}>{v}</td>
+                                          ))}
+                                          <td style={{ textAlign: "center", padding: "9px 10px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "#ffcc00" }}>{s.points}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -1170,37 +965,19 @@ export default function Home() {
           </>
         )}
 
+        {/* TAB ELIMINATORIAS */}
         {tabActiva === "eliminatorias" && (
-          <div className="bg-[#111118] border border-[#2255ee]/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(34,85,238,0.18)]">
-            <p className="text-xs tracking-[0.4em] uppercase text-[#4f8cff] mb-3">
-              Eliminatorias
-            </p>
-
-            <h2 className="text-3xl font-black mb-3">🏆 Cruces eliminatorios</h2>
-
-            <p className="text-gray-300 mb-5">
-              Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.
-            </p>
-
+          <div style={{ borderRadius: 14, border: "1px solid rgba(34,85,238,0.35)", background: "#0d0d14", padding: "24px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.4em", textTransform: "uppercase", color: "#4f8cff", marginBottom: 10 }}>Eliminatorias</div>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, marginBottom: 8 }}>Cruces eliminatorios</h2>
+            <p style={{ fontSize: 14, color: "#555", marginBottom: 24 }}>Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.</p>
             <div className="grid gap-4 md:grid-cols-3">
-              {[
-                "Dieciseisavos",
-                "Octavos",
-                "Cuartos",
-                "Semifinales",
-                "Tercer puesto",
-                "Final",
-              ].map((fase) => (
-                <div
-                  key={fase}
-                  className="rounded-2xl border border-zinc-700 bg-[#0f0f16] p-5"
-                >
-                  <p className="text-xl font-black text-white">{fase}</p>
-                  <p className="mt-2 text-sm text-gray-400">
-                    Próximamente disponible.
-                  </p>
-                  <button className="mt-4 w-full rounded border border-[#2255ee] bg-[#2255ee]/10 p-3 font-black text-[#4f8cff]">
-                    🔒 Bloqueado
+              {["Dieciseisavos","Octavos","Cuartos","Semifinales","Tercer puesto","Final"].map((fase) => (
+                <div key={fase} style={{ borderRadius: 12, border: "1px solid #1a1a24", background: "#111118", padding: "18px 20px" }}>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>{fase}</div>
+                  <div style={{ fontSize: 13, color: "#444", marginBottom: 14 }}>Próximamente disponible.</div>
+                  <button style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid rgba(34,85,238,0.3)", background: "rgba(34,85,238,0.05)", color: "#4f8cff", fontWeight: 800, fontSize: 13, cursor: "default" }}>
+                    Bloqueado
                   </button>
                 </div>
               ))}
@@ -1208,67 +985,91 @@ export default function Home() {
           </div>
         )}
 
+        {/* TAB RANKING */}
         {tabActiva === "ranking" && (
-          <div className="bg-[#111118] border border-yellow-500/70 p-5 md:p-6 rounded-2xl shadow-[0_0_30px_rgba(255,204,0,0.14)]">
-            <h2 className="text-3xl font-black text-yellow-400 mb-5">
-              📊 Ranking completo
-            </h2>
-
-            <div className="space-y-3">
-              {scores.map((score, index) => (
-                <div
-                  key={score.id}
-                  className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
-                >
-                  <div>
-                    <p className="font-black">
-                      {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
-                    </p>
-                  </div>
-
-                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
+          <div style={{ borderRadius: 14, border: "1px solid rgba(255,204,0,0.35)", background: "#0d0d14", padding: "24px" }}>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: "#ffcc00", marginBottom: 20, letterSpacing: "0.04em" }}>Ranking completo</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {scores.length === 0 && <p style={{ fontSize: 13, color: "#444" }}>Todavía no hay puntos cargados.</p>}
+              {scores.map((score, i) => (
+                <div key={score.id} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "14px 18px", borderRadius: 10, border: "1px solid",
+                  borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":i===2?"rgba(249,115,22,0.3)":"#1a1a24",
+                  background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":i===2?"rgba(249,115,22,0.04)":"#111118",
+                }}>
+                  <span style={{ fontWeight: 800, fontSize: 15, display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i===0?"#ffcc00":i===1?"#aaa":i===2?"#cd7c3a":"#333", minWidth: 28 }}>{medallaRanking(i)}</span>
+                    {score.players?.full_name ?? "Sin nombre"}
+                  </span>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#ffcc00" }}>{score.points} pts</span>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </section>
 
-      {rankingAbierto && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#111118] border border-[#7c3aed] rounded-2xl p-5 md:p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-[0_0_40px_rgba(124,58,237,0.35)]">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-black text-orange-400">
-                Ranking completo
-              </h2>
-
-              <button
-                onClick={() => setRankingAbierto(false)}
-                className="bg-red-500 px-4 py-2 rounded font-bold"
-              >
-                Cerrar
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {scores.map((score, index) => (
-                <div
-                  key={score.id}
-                  className={`border p-4 rounded-xl flex justify-between ${estiloRanking(index)}`}
-                >
-                  <div>
-                    <p className="font-bold">
-                      {medallaRanking(index)} {score.players?.full_name ?? "Sin nombre"}
-                    </p>
-                  </div>
-
-                  <p className="text-[#ffcc00] font-black">{score.points} pts</p>
+        {/* TAB REGLAS */}
+        {tabActiva === "reglas" && (
+          <div style={{ borderRadius: 14, border: "1px solid rgba(34,197,94,0.3)", background: "#0d0d14", padding: "28px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.4em", textTransform: "uppercase", color: "#22c55e", marginBottom: 10 }}>Información</div>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, marginBottom: 24, letterSpacing: "0.04em" }}>Reglas del Prode</h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              {[
+                {
+                  titulo: "¿Cómo participar?",
+                  texto: "Ingresá con tu usuario BET30 con una carga mínima de $25.000. Una vez validado, podés empezar a cargar tus pronósticos.",
+                  color: "#ff7722",
+                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff7722" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                },
+                {
+                  titulo: "Sistema de puntos",
+                  texto: "Resultado exacto: 8 pts. Ganador o empate correcto: 3 pts. Diferencia de goles correcta: +2 pts adicionales. Campeón correcto: +15 pts bonus.",
+                  color: "#ffcc00",
+                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                },
+                {
+                  titulo: "Cierre de pronósticos",
+                  texto: "Cada partido se cierra automáticamente al inicio del mismo. No se pueden modificar los pronósticos una vez cerrado el partido.",
+                  color: "#e8357a",
+                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8357a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                },
+                {
+                  titulo: "Campeón del torneo",
+                  texto: "Podés elegir el campeón del Mundial en cualquier momento antes de que inicie el torneo. Si acertás sumás +15 puntos al ranking final.",
+                  color: "#4f8cff",
+                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f8cff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                },
+                {
+                  titulo: "Premios",
+                  texto: "1° Puesto: $700.000 · 2° Puesto: $200.000 · 3° Puesto: $100.000. Los premios se acreditan al finalizar el torneo.",
+                  color: "#22c55e",
+                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                },
+                {
+                  titulo: "Desempate",
+                  texto: "En caso de empate en puntos, se desempata por mayor cantidad de resultados exactos, luego por ganador/empate correctos.",
+                  color: "#a78bfa",
+                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                },
+              ].map(({ titulo, texto, color, svg }) => (
+                <div key={titulo} style={{
+                  padding: "20px 22px", borderRadius: 12,
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))",
+                  border: "1px solid #1e1e2a",
+                  position: "relative", overflow: "hidden",
+                }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: color, borderRadius: "3px 0 0 3px" }} />
+                  <div style={{ marginBottom: 12, marginLeft: 4 }}>{svg}</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6, color: "#e0e0e0", marginLeft: 4 }}>{titulo}</div>
+                  <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginLeft: 4 }}>{texto}</div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      </div>
     </main>
   );
 }
