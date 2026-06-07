@@ -832,45 +832,6 @@ export default function Home() {
   </div>
 )}
 
-<div className="mb-6 rounded-2xl border border-orange-500/40 bg-gradient-to-r from-[#1b1b25] to-[#10101a] p-5 md:p-6 shadow-[0_0_25px_rgba(249,115,22,0.15)]">
-  <h2 className="text-2xl font-black text-orange-400 mb-2">
-    🎁 ¿Querés participar?
-  </h2>
-
-  <p className="text-gray-300 mb-5">
-    Si todavía no tenés cuenta, hablá con uno de nuestros cajeros y empezá a competir en el Prode Mundial BET30.
-  </p>
-
-  <div className="grid md:grid-cols-3 gap-3">
-    <a
-      href="https://wa.link/3bu64g"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="rounded-xl bg-green-600 hover:bg-green-500 p-4 text-center font-black transition"
-    >
-      🟢 Línea Verde
-    </a>
-
-    <a
-      href="https://wa.link/krk6kw"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="rounded-xl bg-purple-600 hover:bg-purple-500 p-4 text-center font-black transition"
-    >
-      🟣 Línea Violeta
-    </a>
-
-    <a
-      href="https://wa.link/g578ir"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="rounded-xl bg-red-600 hover:bg-red-500 p-4 text-center font-black transition"
-    >
-      🔴 Línea Roja
-    </a>
-  </div>
-</div>
-
 <div className="bg-[#111118] border border-[#7c3aed] p-5 md:p-6 rounded-2xl mb-6 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
   <h2 className="text-xl font-black mb-2">Ingresar al Prode</h2>
 
