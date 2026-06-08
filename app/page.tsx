@@ -535,7 +535,6 @@ export default function Home() {
               <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(255,196,0,0.12) 0%, transparent 65%)" }} />
               <img src={WORLD_CUP_2030_LOGO} alt="Copa del Mundo" className="absolute inset-0 w-full h-full object-cover object-center" style={{ opacity: 0.95, mixBlendMode: "luminosity" }} />
               <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #06060a 0%, transparent 35%)" }} />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #06060a 0%, #06060a 18%, transparent 42%, transparent 72%, #06060a 100%)" }} />
               <div className="relative z-10 mt-auto mx-5 mb-5" style={{ background: "rgba(4,4,10,0.88)", border: "1px solid rgba(255,255,255,0.07)", borderTop: "2px solid #ffcc00", borderRadius: "0 0 10px 10px", padding: "16px 18px", backdropFilter: "blur(12px)" }}>
                 <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.3em", textTransform: "uppercase", color: "#ffcc00", marginBottom: 12 }}>Premios</div>
                 {[["🥇","1° Puesto","$700.000"],["🥈","2° Puesto","$200.000"],["🥉","3° Puesto","$100.000"]].map(([m,pos,amt]) => (
