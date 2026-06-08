@@ -195,6 +195,71 @@ export default function AdminPage() {
     cargarTodo();
   }
 
+  async function recalcularStandings(groupName: string) {
+    // Traer todos los partidos del grupo con resultado cargado
+    const { data: partidos } = await supabase
+      .from("matches")
+      .select("home_team, away_team, real_home_goals, real_away_goals")
+      .eq("phase", groupName)
+      .not("real_home_goals", "is", null)
+      .not("real_away_goals", "is", null);
+
+    if (!partidos || partidos.length === 0) {
+      // Si no hay resultados, limpiar la tabla del grupo
+      await supabase.from("standings").delete().eq("group_name", groupName);
+      await cargarStandings();
+      return;
+    }
+
+    // Calcular stats por equipo
+    const stats: Record<string, { played: number; won: number; drawn: number; lost: number; goals_for: number; goals_against: number; points: number }> = {};
+
+    function initTeam(team: string) {
+      if (!stats[team]) stats[team] = { played: 0, won: 0, drawn: 0, lost: 0, goals_for: 0, goals_against: 0, points: 0 };
+    }
+
+    partidos.forEach((p) => {
+      const hg = p.real_home_goals as number;
+      const ag = p.real_away_goals as number;
+      initTeam(p.home_team);
+      initTeam(p.away_team);
+
+      stats[p.home_team].played++;
+      stats[p.away_team].played++;
+      stats[p.home_team].goals_for += hg;
+      stats[p.home_team].goals_against += ag;
+      stats[p.away_team].goals_for += ag;
+      stats[p.away_team].goals_against += hg;
+
+      if (hg > ag) {
+        stats[p.home_team].won++; stats[p.home_team].points += 3;
+        stats[p.away_team].lost++;
+      } else if (hg < ag) {
+        stats[p.away_team].won++; stats[p.away_team].points += 3;
+        stats[p.home_team].lost++;
+      } else {
+        stats[p.home_team].drawn++; stats[p.home_team].points++;
+        stats[p.away_team].drawn++; stats[p.away_team].points++;
+      }
+    });
+
+    // Borrar standings actuales del grupo y reinsertar
+    await supabase.from("standings").delete().eq("group_name", groupName);
+
+    const rows = Object.entries(stats).map(([team, s]) => ({
+      group_name: groupName,
+      team,
+      ...s,
+      updated_at: new Date().toISOString(),
+    }));
+
+    if (rows.length > 0) {
+      await supabase.from("standings").insert(rows);
+    }
+
+    await cargarStandings();
+  }
+
   async function guardarResultado(match: Match) {
     setGuardandoId(match.id); setMensaje("");
     const { error } = await supabase.from("matches").update({
@@ -202,8 +267,9 @@ export default function AdminPage() {
     }).eq("id", match.id);
     setGuardandoId(null);
     if (error) { setMensaje("Error al guardar resultado."); return; }
-    setMensaje("✅ Resultado guardado y partido bloqueado.");
     await cargarPartidos();
+    await recalcularStandings(match.phase);
+    setMensaje("✅ Resultado guardado. Tabla de posiciones actualizada.");
   }
 
   async function toggleBloqueo(match: Match) {
@@ -218,18 +284,22 @@ export default function AdminPage() {
   async function resetearResultado(matchId: string) {
     if (!confirm("¿Resetear este partido?")) return;
     setGuardandoId(matchId); setMensaje("");
+    const match = matches.find(m => m.id === matchId);
     await supabase.from("matches").update({ real_home_goals: null, real_away_goals: null, locked: false }).eq("id", matchId);
     setGuardandoId(null);
-    setMensaje("✅ Resultado reseteado.");
     await cargarPartidos();
+    if (match) await recalcularStandings(match.phase);
+    setMensaje("✅ Resultado reseteado. Tabla de posiciones actualizada.");
   }
 
   async function resetearTodosLosResultados() {
     if (!confirm("¿Borrar todos los resultados y desbloquear todos los partidos?")) return;
     setMensaje("Reseteando...");
     await supabase.from("matches").update({ real_home_goals: null, real_away_goals: null, locked: false }).neq("id", "00000000-0000-0000-0000-000000000000");
-    setMensaje("✅ Todos los resultados reseteados.");
+    await supabase.from("standings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     await cargarPartidos();
+    await cargarStandings();
+    setMensaje("✅ Todos los resultados reseteados. Tablas de posiciones limpiadas.");
   }
 
   async function resetearRanking() {
@@ -364,41 +434,14 @@ export default function AdminPage() {
 
         {/* ── STANDINGS ── */}
         <div className="mb-6 rounded bg-zinc-900 p-5 border border-green-500">
-          <h2 className="text-2xl font-bold text-green-400 mb-4">📊 Tablas de posiciones</h2>
-
-          {/* Formulario de carga */}
-          <div className="mb-6 rounded bg-black/40 p-4 border border-zinc-700">
-            <h3 className="font-bold text-white mb-3">Agregar / actualizar equipo</h3>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-3">
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Grupo</label>
-                <select value={sGrupo} onChange={(e) => setSGrupo(e.target.value)} className="w-full rounded bg-white p-2 text-black text-sm">
-                  {GRUPOS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Equipo</label>
-                <input value={sEquipo} onChange={(e) => setSEquipo(e.target.value)} placeholder="Ej: Argentina" className="w-full rounded bg-white p-2 text-black text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">PJ</label>
-                <input type="number" min="0" value={sPJ} onChange={(e) => setSPJ(e.target.value)} className="w-full rounded bg-white p-2 text-black text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Pts</label>
-                <input type="number" min="0" value={sPts} onChange={(e) => setSPts(e.target.value)} className="w-full rounded bg-white p-2 text-black text-sm" />
-              </div>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div>
+              <h2 className="text-2xl font-bold text-green-400">📊 Tablas de posiciones</h2>
+              <p className="text-sm text-gray-400 mt-1">Se actualizan automáticamente al guardar resultados.</p>
             </div>
-            <div className="grid gap-3 grid-cols-3 md:grid-cols-6 mb-4">
-              {[["G","Ganados",sG,setSG],["E","Empatados",sE,setSE],["P","Perdidos",sP,setSP],["GF","Goles a favor",sGF,setSGF],["GC","Goles en contra",sGC,setSGC]].map(([lbl, title, val, setter]: any) => (
-                <div key={lbl}>
-                  <label className="text-xs text-gray-400 mb-1 block" title={title}>{lbl}</label>
-                  <input type="number" min="0" value={val} onChange={(e) => setter(e.target.value)} className="w-full rounded bg-white p-2 text-black text-sm" />
-                </div>
-              ))}
-            </div>
-            <button onClick={guardarStanding} disabled={cargandoStanding} className="rounded bg-green-500 px-6 py-2 font-bold text-black disabled:bg-gray-600">
-              {cargandoStanding ? "Guardando..." : "Guardar posición"}
+            <button onClick={() => { if (confirm("¿Limpiar todas las tablas?")) { supabase.from("standings").delete().neq("id","00000000-0000-0000-0000-000000000000").then(() => cargarStandings()); setMensaje("✅ Tablas limpiadas."); } }}
+              className="rounded bg-red-800 px-4 py-2 text-sm font-bold text-white">
+              Limpiar todas
             </button>
           </div>
 
