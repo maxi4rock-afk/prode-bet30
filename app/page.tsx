@@ -383,11 +383,28 @@ export default function Home() {
       </div>
 
       <style>{`
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateX(20px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .match-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 160px 1fr;
+    align-items: center;
+  }
+  @media (max-width: 640px) {
+    .match-card-grid {
+      grid-template-columns: 1fr;
+    }
+    .match-card-grid > div:last-child {
+      flex-direction: row !important;
+      justify-content: flex-start !important;
+      text-align: left !important;
+      padding-top: 0 !important;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+  }
+`}</style>
 
       {/* ── NAVBAR FIJA ── */}
       <nav style={{
@@ -796,17 +813,14 @@ export default function Home() {
                           {partidos.map((match) => {
                             const bloqueado = partidoBloqueado(match);
                             return (
-                              <div key={match.id} style={{
-                                display: "grid",
-                                gridTemplateColumns: "1fr 160px 1fr",
-                                alignItems: "center",
-                                borderRadius: 10,
-                                overflow: "hidden",
-                                border: `1px solid ${bloqueado ? "#161620" : "#1e1e2a"}`,
-                                background: bloqueado ? "rgba(8,8,12,0.6)" : "rgba(14,14,22,0.9)",
-                                opacity: bloqueado ? 0.65 : 1,
-                                position: "relative",
-                              }}>
+                              <div key={match.id} className="match-card-grid" style={{
+  borderRadius: 10,
+  overflow: "hidden",
+  border: `1px solid ${bloqueado ? "#161620" : "#1e1e2a"}`,
+  background: bloqueado ? "rgba(8,8,12,0.6)" : "rgba(14,14,22,0.9)",
+  opacity: bloqueado ? 0.65 : 1,
+  position: "relative",
+}}>
                                 {/* Línea top sutil */}
                                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: bloqueado ? "transparent" : "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)" }} />
 
