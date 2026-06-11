@@ -286,19 +286,6 @@ export default function AdminPage() {
     setMensaje("✅ Resultado guardado. Tabla de posiciones actualizada.");
   }
 
-  async function guardarCuotas(match: Match) {
-    setGuardandoId(match.id); setMensaje("");
-    const { error } = await supabase.from("matches").update({
-      odd_home: match.odd_home,
-      odd_draw: match.odd_draw,
-      odd_away: match.odd_away,
-    }).eq("id", match.id);
-    setGuardandoId(null);
-    if (error) { setMensaje("Error al guardar cuotas."); return; }
-    setMensaje("✅ Cuotas guardadas.");
-    await cargarPartidos();
-  }
-
   async function toggleBloqueo(match: Match) {
     setGuardandoId(match.id); setMensaje("");
     const { error } = await supabase.from("matches").update({ locked: !match.locked }).eq("id", match.id);
