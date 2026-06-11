@@ -35,6 +35,7 @@ type Match = {
   home_team: string; away_team: string;
   real_home_goals: number | null; real_away_goals: number | null;
   locked: boolean;
+  odd_home: number | null; odd_draw: number | null; odd_away: number | null;
 };
 
 type Prediction = {
@@ -260,6 +261,19 @@ export default function AdminPage() {
     await cargarStandings();
   }
 
+  async function guardarCuotas(match: Match) {
+    setGuardandoId(match.id); setMensaje("");
+    const { error } = await supabase.from("matches").update({
+      odd_home: match.odd_home,
+      odd_draw: match.odd_draw,
+      odd_away: match.odd_away,
+    }).eq("id", match.id);
+    setGuardandoId(null);
+    if (error) { setMensaje("Error al guardar cuotas."); return; }
+    setMensaje("✅ Cuotas guardadas.");
+    await cargarPartidos();
+  }
+
   async function guardarResultado(match: Match) {
     setGuardandoId(match.id); setMensaje("");
     const { error } = await supabase.from("matches").update({
@@ -270,6 +284,19 @@ export default function AdminPage() {
     await cargarPartidos();
     await recalcularStandings(match.phase);
     setMensaje("✅ Resultado guardado. Tabla de posiciones actualizada.");
+  }
+
+  async function guardarCuotas(match: Match) {
+    setGuardandoId(match.id); setMensaje("");
+    const { error } = await supabase.from("matches").update({
+      odd_home: match.odd_home,
+      odd_draw: match.odd_draw,
+      odd_away: match.odd_away,
+    }).eq("id", match.id);
+    setGuardandoId(null);
+    if (error) { setMensaje("Error al guardar cuotas."); return; }
+    setMensaje("✅ Cuotas guardadas.");
+    await cargarPartidos();
   }
 
   async function toggleBloqueo(match: Match) {
@@ -518,31 +545,69 @@ export default function AdminPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold">Resultados reales</h2>
             {matches.map((match) => (
-              <div key={match.id} className="grid gap-3 rounded bg-zinc-900 p-4 md:grid-cols-7 md:items-center">
-                <div className="md:col-span-2">
-                  <p className="text-sm text-gray-400">{match.phase}</p>
-                  <p className="font-bold">{match.home_team} vs {match.away_team}</p>
-                  <p className="mt-1 text-sm font-bold text-yellow-400">🕒 {formatearFechaArgentina(match.match_date)}</p>
-                  <p className={`mt-1 text-sm font-bold ${match.locked ? "text-red-400" : "text-green-400"}`}>
-                    {match.locked ? "🔒 Bloqueado" : "🔓 Abierto"}
-                  </p>
+              <div key={match.id} className="rounded bg-zinc-900 p-4 space-y-3">
+                {/* Info del partido */}
+                <div className="flex items-start justify-between flex-wrap gap-2">
+                  <div>
+                    <p className="text-sm text-gray-400">{match.phase}</p>
+                    <p className="font-bold">{match.home_team} vs {match.away_team}</p>
+                    <p className="mt-1 text-sm font-bold text-yellow-400">🕒 {formatearFechaArgentina(match.match_date)}</p>
+                    <p className={`mt-1 text-sm font-bold ${match.locked ? "text-red-400" : "text-green-400"}`}>
+                      {match.locked ? "🔒 Bloqueado" : "🔓 Abierto"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => toggleBloqueo(match)} disabled={guardandoId === match.id || calculando}
+                      className={`rounded px-3 py-2 text-sm font-bold ${match.locked ? "bg-green-600 text-white" : "bg-red-600 text-white"}`}>
+                      {match.locked ? "Desbloquear" : "Bloquear"}
+                    </button>
+                    <button onClick={() => resetearResultado(match.id)} disabled={guardandoId === match.id || calculando}
+                      className="rounded bg-zinc-700 px-3 py-2 text-sm font-bold text-white">Reset</button>
+                  </div>
                 </div>
-                <input className="rounded bg-white p-3 text-center text-black" type="number" min="0" placeholder={match.home_team}
-                  value={match.real_home_goals ?? ""}
-                  onChange={(e) => setMatches(prev => prev.map(item => item.id === match.id ? { ...item, real_home_goals: parseGoalValue(e.target.value) } : item))} />
-                <input className="rounded bg-white p-3 text-center text-black" type="number" min="0" placeholder={match.away_team}
-                  value={match.real_away_goals ?? ""}
-                  onChange={(e) => setMatches(prev => prev.map(item => item.id === match.id ? { ...item, real_away_goals: parseGoalValue(e.target.value) } : item))} />
-                <button onClick={() => guardarResultado(match)} disabled={guardandoId === match.id || calculando}
-                  className="rounded bg-yellow-500 p-3 font-bold text-black disabled:bg-gray-600 disabled:text-white">
-                  {guardandoId === match.id ? "..." : "Guardar"}
-                </button>
-                <button onClick={() => toggleBloqueo(match)} disabled={guardandoId === match.id || calculando}
-                  className={`rounded p-3 font-bold ${match.locked ? "bg-green-600 text-white" : "bg-red-600 text-white"}`}>
-                  {match.locked ? "Desbloquear" : "Bloquear"}
-                </button>
-                <button onClick={() => resetearResultado(match.id)} disabled={guardandoId === match.id || calculando}
-                  className="rounded bg-zinc-700 p-3 font-bold text-white">Reset</button>
+
+                {/* Resultado real */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-xs font-bold uppercase text-gray-500 w-full">Resultado real</p>
+                  <input className="rounded bg-white p-2 text-center text-black w-24" type="number" min="0" placeholder={match.home_team}
+                    value={match.real_home_goals ?? ""}
+                    onChange={(e) => setMatches(prev => prev.map(item => item.id === match.id ? { ...item, real_home_goals: parseGoalValue(e.target.value) } : item))} />
+                  <span className="text-gray-400 font-bold">—</span>
+                  <input className="rounded bg-white p-2 text-center text-black w-24" type="number" min="0" placeholder={match.away_team}
+                    value={match.real_away_goals ?? ""}
+                    onChange={(e) => setMatches(prev => prev.map(item => item.id === match.id ? { ...item, real_away_goals: parseGoalValue(e.target.value) } : item))} />
+                  <button onClick={() => guardarResultado(match)} disabled={guardandoId === match.id || calculando}
+                    className="rounded bg-yellow-500 px-4 py-2 text-sm font-bold text-black disabled:bg-gray-600 disabled:text-white">
+                    {guardandoId === match.id ? "..." : "Guardar resultado"}
+                  </button>
+                </div>
+
+                {/* Cuotas */}
+                <div className="flex items-center gap-3 flex-wrap border-t border-zinc-700 pt-3">
+                  <p className="text-xs font-bold uppercase text-gray-500 w-full">Cuotas (1 · X · 2)</p>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-xs text-gray-500">Local</span>
+                    <input className="rounded bg-white p-2 text-center text-black w-20" type="number" min="1" step="0.01" placeholder="1.00"
+                      value={match.odd_home ?? ""}
+                      onChange={(e) => setMatches(prev => prev.map(item => item.id === match.id ? { ...item, odd_home: e.target.value ? Number(e.target.value) : null } : item))} />
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-xs text-gray-500">Empate</span>
+                    <input className="rounded bg-white p-2 text-center text-black w-20" type="number" min="1" step="0.01" placeholder="1.00"
+                      value={match.odd_draw ?? ""}
+                      onChange={(e) => setMatches(prev => prev.map(item => item.id === match.id ? { ...item, odd_draw: e.target.value ? Number(e.target.value) : null } : item))} />
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-xs text-gray-500">Visitante</span>
+                    <input className="rounded bg-white p-2 text-center text-black w-20" type="number" min="1" step="0.01" placeholder="1.00"
+                      value={match.odd_away ?? ""}
+                      onChange={(e) => setMatches(prev => prev.map(item => item.id === match.id ? { ...item, odd_away: e.target.value ? Number(e.target.value) : null } : item))} />
+                  </div>
+                  <button onClick={() => guardarCuotas(match)} disabled={guardandoId === match.id || calculando}
+                    className="rounded bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:bg-gray-600 self-end">
+                    {guardandoId === match.id ? "..." : "Guardar cuotas"}
+                  </button>
+                </div>
               </div>
             ))}
           </section>

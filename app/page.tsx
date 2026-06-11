@@ -10,6 +10,11 @@ type Match = {
   home_team: string;
   away_team: string;
   locked: boolean | null;
+  real_home_goals: number | null;
+  real_away_goals: number | null;
+  odd_home: number | null;
+  odd_draw: number | null;
+  odd_away: number | null;
 };
 
 type Score = {
@@ -149,11 +154,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (menuAbierto) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (menuAbierto) { document.body.style.overflow = "hidden"; }
+    else { document.body.style.overflow = ""; }
     return () => { document.body.style.overflow = ""; };
   }, [menuAbierto]);
 
@@ -197,13 +199,13 @@ export default function Home() {
   function navegarA(tab: typeof tabActiva) {
     setTabActiva(tab);
     setMenuAbierto(false);
-    setTimeout(() => {
-      document.getElementById("contenido-principal")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+    setTimeout(() => { document.getElementById("contenido-principal")?.scrollIntoView({ behavior: "smooth" }); }, 100);
   }
 
   async function cargarPartidos() {
-    const { data, error } = await supabase.from("matches").select("id, phase, match_date, home_team, away_team, locked").order("match_date", { ascending: true });
+    const { data, error } = await supabase.from("matches")
+      .select("id, phase, match_date, home_team, away_team, locked, real_home_goals, real_away_goals, odd_home, odd_draw, odd_away")
+      .order("match_date", { ascending: true });
     if (error) { showToast("Error al cargar partidos.", "error"); return; }
     setMatches(data ?? []);
   }
@@ -269,9 +271,7 @@ export default function Home() {
     if (existing) {
       await supabase.from("players").update({ full_name: nombreRanking }).eq("id", existing.id);
       setPlayerId(existing.id);
-      localStorage.setItem("playerId", existing.id);
-      localStorage.setItem("usuario", existing.casino_user);
-      localStorage.setItem("nombreVisible", nombreRanking);
+      localStorage.setItem("playerId", existing.id); localStorage.setItem("usuario", existing.casino_user); localStorage.setItem("nombreVisible", nombreRanking);
       setUsuario(existing.casino_user); setNombreVisible(nombreRanking);
       await cargarRanking(); await cargarPronosticos(existing.id); await cargarCampeon(existing.id);
       showToast("✅ Bienvenido nuevamente. Pronósticos cargados."); return;
@@ -279,9 +279,7 @@ export default function Home() {
     const { data, error } = await supabase.from("players").insert({ full_name: nombreRanking, casino_user: usuarioLimpio, paid: true }).select("id").single();
     if (error) { showToast("Error al registrar.", "error"); return; }
     setPlayerId(data.id);
-    localStorage.setItem("playerId", data.id);
-    localStorage.setItem("usuario", usuarioLimpio);
-    localStorage.setItem("nombreVisible", nombreRanking);
+    localStorage.setItem("playerId", data.id); localStorage.setItem("usuario", usuarioLimpio); localStorage.setItem("nombreVisible", nombreRanking);
     setUsuario(usuarioLimpio); setNombreVisible(nombreRanking);
     await cargarRanking(); setCampeon(""); setCampeonGuardado("");
     showToast("✅ Registro exitoso. Ya podés cargar tus pronósticos.");
@@ -328,12 +326,151 @@ export default function Home() {
     { key: "miperfil",      label: "Mi perfil",        desc: "Tu cuenta y campeón" },
   ] as const;
 
+  // ─── MATCH CARD COMPONENT ─────────────────────────────────────────────────
+  function MatchCard({ match }: { match: Match }) {
+    const bloqueado = partidoBloqueado(match);
+    const hasOdds = match.odd_home || match.odd_draw || match.odd_away;
+    const minOdd = Math.min(match.odd_home ?? 999, match.odd_draw ?? 999, match.odd_away ?? 999);
+
+    return (
+      <div style={{
+        borderRadius: 10, overflow: "hidden",
+        border: `1px solid ${bloqueado ? "#161620" : "#1e1e2a"}`,
+        background: bloqueado ? "rgba(8,8,12,0.5)" : "rgba(14,14,22,0.95)",
+      }}>
+        {/* Phase + status bar */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "5px 14px",
+          background: "rgba(0,0,0,0.25)",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#444" }}>{match.phase}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {match.real_home_goals !== null && match.real_away_goals !== null && (
+              <span style={{
+                fontSize: 11, fontWeight: 800, color: "#22c55e",
+                background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)",
+                borderRadius: 4, padding: "1px 8px", letterSpacing: "0.05em",
+              }}>
+                {match.real_home_goals} — {match.real_away_goals}
+              </span>
+            )}
+            {bloqueado && <span style={{ fontSize: 10, fontWeight: 700, color: "#e8357a", letterSpacing: "0.1em", textTransform: "uppercase" }}>Cerrado</span>}
+          </div>
+        </div>
+
+        {/* Main row: local | scoreboard | visitante */}
+        <div className="match-card-grid">
+          {/* Local */}
+          <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+            {FLAG_CODES[match.home_team] && (
+              <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.home_team]}.png`} alt={match.home_team}
+                style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
+            )}
+            <div>
+              <div style={{ fontSize: 9, color: "#ff7722", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 3 }}>Local</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd" }}>{match.home_team}</div>
+            </div>
+          </div>
+
+          {/* Scoreboard */}
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            padding: "12px 8px", gap: 5,
+            borderLeft: "1px solid rgba(255,255,255,0.04)",
+            borderRight: "1px solid rgba(255,255,255,0.04)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                disabled={bloqueado} type="number" min="0" placeholder="—"
+                value={predictions[match.id]?.home ?? ""}
+                onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: e.target.value, away: prev[match.id]?.away ?? "" } }))}
+                style={{
+                  width: 48, height: 44, borderRadius: 6, textAlign: "center",
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
+                  background: bloqueado ? "#0a0a10" : "#111118",
+                  border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
+                  color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
+                }}
+              />
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "#2a2a38" }}>—</span>
+              <input
+                disabled={bloqueado} type="number" min="0" placeholder="—"
+                value={predictions[match.id]?.away ?? ""}
+                onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: prev[match.id]?.home ?? "", away: e.target.value } }))}
+                style={{
+                  width: 48, height: 44, borderRadius: 6, textAlign: "center",
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
+                  background: bloqueado ? "#0a0a10" : "#111118",
+                  border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
+                  color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 10, color: "#3a3a48", fontWeight: 600, textAlign: "center" }}>
+              {formatearFecha(match.match_date)}
+            </div>
+            {!bloqueado && (
+              <button onClick={() => guardarPronostico(match.id)} style={{
+                padding: "5px 14px", borderRadius: 5,
+                background: "linear-gradient(135deg,#ff7722,#ffcc00)",
+                color: "#000", fontSize: 10, fontWeight: 900, border: "none",
+                cursor: "pointer", letterSpacing: "0.08em", textTransform: "uppercase",
+              }}>
+                Guardar
+              </button>
+            )}
+          </div>
+
+          {/* Visitante */}
+          <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexDirection: "row-reverse" }}>
+            {FLAG_CODES[match.away_team] && (
+              <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.away_team]}.png`} alt={match.away_team}
+                style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
+            )}
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, color: "#4f8cff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 3 }}>Visitante</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd" }}>{match.away_team}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Odds row — OUTSIDE the grid */}
+        {hasOdds && (
+          <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            {[
+              { label: "1 Local",    val: match.odd_home },
+              { label: "X Empate",   val: match.odd_draw },
+              { label: "2 Visitante",val: match.odd_away },
+            ].map(({ label, val }, i) => {
+              const isFav = val !== null && val === minOdd;
+              return (
+                <div key={label} style={{
+                  flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+                  padding: "8px 4px", gap: 3,
+                  borderRight: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                  background: isFav ? "rgba(255,119,34,0.07)" : "transparent",
+                }}>
+                  <span style={{ fontSize: 10, color: "#444", fontWeight: 600, letterSpacing: "0.05em" }}>{label}</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: isFav ? "#ff7722" : "#555" }}>
+                    {val?.toFixed(2) ?? "—"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#06060a] text-white" style={{ fontFamily: "'Barlow', sans-serif", position: "relative" }}>
 
-      {/* ── FONDO ESTADIO ── */}
+      {/* Fondo estadio */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
-        <svg width="100%" height="100%" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.055 }}>
+        <svg width="100%" height="100%" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" style={{ opacity: 0.05 }}>
           <ellipse cx="600" cy="350" rx="520" ry="280" fill="none" stroke="white" strokeWidth="1.5"/>
           <ellipse cx="600" cy="350" rx="80" ry="80" fill="none" stroke="white" strokeWidth="1"/>
           <line x1="600" y1="70" x2="600" y2="630" stroke="white" strokeWidth="1"/>
@@ -345,36 +482,27 @@ export default function Home() {
           <path d="M 1120 70 Q 1100 70 1100 90" fill="none" stroke="white" strokeWidth="1"/>
           <path d="M 80 630 Q 100 630 100 610" fill="none" stroke="white" strokeWidth="1"/>
           <path d="M 1120 630 Q 1100 630 1100 610" fill="none" stroke="white" strokeWidth="1"/>
-          <circle cx="80" cy="40" r="7" fill="white"/>
-          <circle cx="280" cy="20" r="5" fill="white" opacity="0.7"/>
-          <circle cx="480" cy="12" r="6" fill="white" opacity="0.8"/>
-          <circle cx="600" cy="10" r="7" fill="white"/>
-          <circle cx="720" cy="12" r="6" fill="white" opacity="0.8"/>
-          <circle cx="920" cy="20" r="5" fill="white" opacity="0.7"/>
+          <circle cx="80" cy="40" r="7" fill="white"/><circle cx="280" cy="20" r="5" fill="white" opacity="0.7"/>
+          <circle cx="480" cy="12" r="6" fill="white" opacity="0.8"/><circle cx="600" cy="10" r="7" fill="white"/>
+          <circle cx="720" cy="12" r="6" fill="white" opacity="0.8"/><circle cx="920" cy="20" r="5" fill="white" opacity="0.7"/>
           <circle cx="1120" cy="40" r="7" fill="white"/>
           <line x1="80" y1="40" x2="250" y2="220" stroke="white" strokeWidth="0.6" opacity="0.4"/>
           <line x1="1120" y1="40" x2="950" y2="220" stroke="white" strokeWidth="0.6" opacity="0.4"/>
           <line x1="600" y1="10" x2="480" y2="200" stroke="white" strokeWidth="0.4" opacity="0.3"/>
           <line x1="600" y1="10" x2="720" y2="200" stroke="white" strokeWidth="0.4" opacity="0.3"/>
-          <line x1="280" y1="20" x2="350" y2="200" stroke="white" strokeWidth="0.4" opacity="0.25"/>
-          <line x1="920" y1="20" x2="850" y2="200" stroke="white" strokeWidth="0.4" opacity="0.25"/>
         </svg>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 30%, rgba(34,85,238,0.06) 0%, transparent 55%), radial-gradient(ellipse at 20% 70%, rgba(232,53,122,0.04) 0%, transparent 40%)" }} />
       </div>
 
-      {/* ── TOASTS ── */}
+      {/* Toasts */}
       <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none" }}>
         {toasts.map((t) => (
           <div key={t.id} style={{
-            padding: "12px 20px",
-            borderRadius: 10,
-            fontWeight: 700,
-            fontSize: 14,
+            padding: "12px 20px", borderRadius: 10, fontWeight: 700, fontSize: 14,
             backdropFilter: "blur(12px)",
             border: `1px solid ${t.type === "success" ? "rgba(74,222,128,0.4)" : "rgba(232,53,122,0.4)"}`,
             background: t.type === "success" ? "rgba(4,20,10,0.95)" : "rgba(20,4,10,0.95)",
             color: t.type === "success" ? "#4ade80" : "#f87171",
-            boxShadow: `0 4px 24px ${t.type === "success" ? "rgba(74,222,128,0.15)" : "rgba(232,53,122,0.15)"}`,
             animation: "slideIn 0.3s ease",
           }}>
             {t.message}
@@ -383,45 +511,22 @@ export default function Home() {
       </div>
 
       <style>{`
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-  .match-card-grid {
-    display: grid;
-    grid-template-columns: 1fr 160px 1fr;
-    align-items: center;
-  }
-  @media (max-width: 640px) {
-    .match-card-grid {
-      grid-template-columns: 1fr;
-    }
-    .match-card-grid > div:last-child {
-      flex-direction: row !important;
-      justify-content: flex-start !important;
-      text-align: left !important;
-      padding-top: 0 !important;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-  }
-`}</style>
+        @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+        .match-card-grid { display: grid; grid-template-columns: 1fr 160px 1fr; align-items: center; }
+        @media (max-width: 640px) {
+          .match-card-grid { grid-template-columns: 1fr; }
+          .match-card-grid > div:last-child { flex-direction: row !important; justify-content: flex-start !important; text-align: left !important; border-top: 1px solid rgba(255,255,255,0.04); }
+        }
+      `}</style>
 
-      {/* ── NAVBAR FIJA ── */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 100,
-        background: "rgba(6,6,10,0.92)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        backdropFilter: "blur(16px)",
-      }}>
+      {/* Navbar */}
+      <nav style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(6,6,10,0.92)", borderBottom: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-screen-xl mx-auto px-4 md:px-6" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
-          {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <img src={BET30_LOGO} alt="BET30" style={{ height: 28, width: "auto", objectFit: "contain" }} />
             <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)" }} />
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.25em", textTransform: "uppercase", color: "#ffcc00" }}>Mundial 2026</span>
           </div>
-
-          {/* Nav links desktop */}
           <div className="hidden md:flex items-center gap-1">
             {navItems.map(({ key, label }) => (
               <button key={key} onClick={() => navegarA(key)} style={{
@@ -429,13 +534,9 @@ export default function Home() {
                 background: tabActiva === key ? "rgba(255,119,34,0.15)" : "transparent",
                 color: tabActiva === key ? "#ff7722" : "#666",
                 borderBottom: tabActiva === key ? "2px solid #ff7722" : "2px solid transparent",
-              }}>
-                {label}
-              </button>
+              }}>{label}</button>
             ))}
           </div>
-
-          {/* Right side */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {playerId && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 6, background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.25)" }}>
@@ -443,29 +544,16 @@ export default function Home() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80" }}>{nombreVisible || "Jugador"}</span>
               </div>
             )}
-            {/* Hamburger */}
-            <button
-              onClick={() => setMenuAbierto(!menuAbierto)}
-              className="md:hidden"
-              style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}
-            >
-              <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(45deg) translate(5px, 5px)" : "none" }} />
+            <button onClick={() => setMenuAbierto(!menuAbierto)} className="md:hidden"
+              style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}>
+              <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(45deg) translate(5px,5px)" : "none" }} />
               <span style={{ width: 18, height: 2, background: menuAbierto ? "transparent" : "#fff", borderRadius: 2, transition: "all 0.2s" }} />
-              <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(-45deg) translate(5px, -5px)" : "none" }} />
+              <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(-45deg) translate(5px,-5px)" : "none" }} />
             </button>
           </div>
         </div>
-
-        {/* Dropdown mobile */}
         {menuAbierto && (
-          <div style={{
-            position: "absolute", top: "100%", left: 0, right: 0,
-            background: "rgba(8,8,14,0.98)",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-            backdropFilter: "blur(20px)",
-            padding: "12px 16px 20px",
-            zIndex: 99,
-          }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "rgba(8,8,14,0.98)", borderBottom: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", padding: "12px 16px 20px", zIndex: 99 }}>
             {navItems.map(({ key, label, desc }) => (
               <button key={key} onClick={() => navegarA(key)} style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -478,112 +566,105 @@ export default function Home() {
                   <div style={{ fontSize: 14, fontWeight: 800, color: tabActiva === key ? "#ff7722" : "#ccc" }}>{label}</div>
                   <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{desc}</div>
                 </div>
-                {tabActiva === key && <span style={{ fontSize: 16, color: "#ff7722" }}>●</span>}
+                {tabActiva === key && <span style={{ color: "#ff7722" }}>●</span>}
               </button>
             ))}
           </div>
         )}
       </nav>
 
-      {/* ── HERO ── */}
+      {/* Hero */}
       <div style={{ position: "relative", zIndex: 1 }}>
-      <div className="relative overflow-hidden bg-[#06060a]">
-        <div className="absolute top-0 left-0 right-0 h-[3px] z-30" style={{ background: "linear-gradient(90deg, #e8357a, #ff9500, #ffcc00, #2255ee)" }} />
-        <div className="absolute inset-0 z-0">
-          <img src="/og-image.png" alt="" className="w-full h-full object-cover object-center" style={{ opacity: 0.08 }} />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #06060a, rgba(6,6,10,0.85), rgba(6,6,10,0.3))" }} />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(6,6,10,0.7), transparent, #06060a)" }} />
-        </div>
-        <div className="absolute inset-0 z-0 pointer-events-none" style={{ opacity: 0.03 }}>
-          <svg className="w-full h-full" viewBox="0 0 1200 560" preserveAspectRatio="xMidYMid slice">
-            {[60,160,270,370,470].map((y, i) => (<line key={i} x1="0" y1={y} x2="1200" y2={y+50} stroke="white" strokeWidth={i%2===0?"1":"0.5"} />))}
-            {[150,420,700,950].map((x, i) => (<line key={i} x1={x} y1="0" x2={x+80} y2="560" stroke="white" strokeWidth="0.5" />))}
-          </svg>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] z-20" style={{ background: "linear-gradient(90deg, transparent, #16a34a, #22c55e, #16a34a, transparent)" }} />
-
-        <div className="relative z-10 w-full max-w-screen-xl mx-auto px-4 md:px-6">
-          <div className="grid md:grid-cols-[1fr_400px] min-h-[480px] w-full items-stretch">
-            <div className="flex flex-col justify-between py-10 pr-0 md:pr-8">
-              <div>
-                <div className="flex items-center gap-3 mb-6 flex-wrap">
-                  <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>
-                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: "0.05em" }}>
-                      <span style={{ color: "#e8357a" }}>BET</span><span style={{ color: "#2255ee" }}>30</span>
-                    </span>
-                  </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", border: "1px solid rgba(232,53,122,0.4)", borderRadius: 4, background: "rgba(232,53,122,0.08)" }}>
-                    <span className="w-2 h-2 rounded-full bg-[#e8357a] animate-pulse" />
-                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase", color: "#e8357a" }}>Ranking en vivo</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div style={{ width: 28, height: 2, background: "#ffcc00" }} />
-                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.4em", textTransform: "uppercase", color: "#ffcc00" }}>Mundial 2026</span>
-                </div>
-                <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", lineHeight: 0.88, marginBottom: 20 }}>
-                  <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "#ffffff" }}>PRODE</span>
-                  <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "transparent", WebkitTextStroke: "2.5px #e8357a" } as React.CSSProperties}>MUNDIAL</span>
-                  <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "#2255ee" }}>BET30</span>
-                </h1>
-                <p style={{ color: "#888", fontSize: 15, maxWidth: 400, lineHeight: 1.6, marginBottom: 8 }}>Pronosticá cada partido, elegí el campeón y peleá por el podio.</p>
-                <p style={{ color: "#bbb", fontSize: 14, marginBottom: 32 }}>
-                  Participá con carga mínima de <span style={{ color: "#ff7722", fontWeight: 800 }}>$25.000</span>
-                </p>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, overflow: "hidden", background: "rgba(255,255,255,0.02)" }}>
-                {[
-                  { label: "Partidos",    value: String(TOTAL_PARTIDOS_GRUPOS), color: "#ff7722" },
-                  { label: "Cerrados",    value: String(partidosBloqueados),    color: "#4f8cff" },
-                  { label: "Pronósticos", value: String(pronosticosCargados),   color: "#ffcc00" },
-                  { label: "Líder",       value: `${scores[0]?.points ?? 0}`,   color: "#e8357a", unit: "pts" },
-                ].map(({ label, value, color, unit }, i) => (
-                  <div key={label} style={{ padding: "14px 10px", textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#444", marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, lineHeight: 1, color }}>
-                      {value}{unit && <span style={{ fontSize: 14, marginLeft: 3 }}>{unit}</span>}
+        <div className="relative overflow-hidden bg-[#06060a]">
+          <div className="absolute top-0 left-0 right-0 h-[3px] z-30" style={{ background: "linear-gradient(90deg, #e8357a, #ff9500, #ffcc00, #2255ee)" }} />
+          <div className="absolute inset-0 z-0">
+            <img src="/og-image.png" alt="" className="w-full h-full object-cover object-center" style={{ opacity: 0.08 }} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #06060a, rgba(6,6,10,0.85), rgba(6,6,10,0.3))" }} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(6,6,10,0.7), transparent, #06060a)" }} />
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] z-20" style={{ background: "linear-gradient(90deg, transparent, #16a34a, #22c55e, #16a34a, transparent)" }} />
+          <div className="relative z-10 w-full max-w-screen-xl mx-auto px-4 md:px-6">
+            <div className="grid md:grid-cols-[1fr_400px] min-h-[480px] w-full items-stretch">
+              <div className="flex flex-col justify-between py-10 pr-0 md:pr-8">
+                <div>
+                  <div className="flex items-center gap-3 mb-6 flex-wrap">
+                    <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>
+                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18 }}>
+                        <span style={{ color: "#e8357a" }}>BET</span><span style={{ color: "#2255ee" }}>30</span>
+                      </span>
+                    </div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", border: "1px solid rgba(232,53,122,0.4)", borderRadius: 4, background: "rgba(232,53,122,0.08)" }}>
+                      <span className="w-2 h-2 rounded-full bg-[#e8357a] animate-pulse" />
+                      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase", color: "#e8357a" }}>Ranking en vivo</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative hidden md:flex flex-col justify-between overflow-hidden" style={{ borderLeft: "1px solid rgba(255,255,255,0.05)" }}>
-              <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(255,196,0,0.12) 0%, transparent 65%)" }} />
-              <img src={WORLD_CUP_2030_LOGO} alt="Copa del Mundo" className="absolute inset-0 w-full h-full object-cover object-center" style={{ opacity: 0.95, mixBlendMode: "luminosity" }} />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #06060a 0%, transparent 35%)" }} />
-              <div className="relative z-10 mt-auto mx-5 mb-5" style={{ background: "rgba(4,4,10,0.88)", border: "1px solid rgba(255,255,255,0.07)", borderTop: "2px solid #ffcc00", borderRadius: "0 0 10px 10px", padding: "16px 18px", backdropFilter: "blur(12px)" }}>
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.3em", textTransform: "uppercase", color: "#ffcc00", marginBottom: 12 }}>Premios</div>
-                {[["🥇","1° Puesto","$700.000"],["🥈","2° Puesto","$200.000"],["🥉","3° Puesto","$100.000"]].map(([m,pos,amt]) => (
-                  <div key={pos} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                    <span style={{ fontSize: 13, marginRight: 8 }}>{m}</span>
-                    <span style={{ flex: 1, fontSize: 13, color: "#bbb" }}>{pos}</span>
-                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "#ffcc00" }}>{amt}</span>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div style={{ width: 28, height: 2, background: "#ffcc00" }} />
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.4em", textTransform: "uppercase", color: "#ffcc00" }}>Mundial 2026</span>
                   </div>
-                ))}
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                  {[["8 pts","Resultado exacto"],["3 pts","Ganador / empate"],["+2 pts","Dif. de goles"],["+15 pts","Campeón correcto"]].map(([pts,desc]) => (
-                    <div key={desc} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: "#ff7722", whiteSpace: "nowrap" }}>{pts}</span>
-                      <span style={{ fontSize: 11, color: "#555", lineHeight: 1.3 }}>{desc}</span>
+                  <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", lineHeight: 0.88, marginBottom: 20 }}>
+                    <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "#ffffff" }}>PRODE</span>
+                    <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "transparent", WebkitTextStroke: "2.5px #e8357a" } as React.CSSProperties}>MUNDIAL</span>
+                    <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "#2255ee" }}>BET30</span>
+                  </h1>
+                  <p style={{ color: "#888", fontSize: 15, maxWidth: 400, lineHeight: 1.6, marginBottom: 8 }}>Pronosticá cada partido, elegí el campeón y peleá por el podio.</p>
+                  <p style={{ color: "#bbb", fontSize: 14, marginBottom: 32 }}>
+                    Participá con carga mínima de <span style={{ color: "#ff7722", fontWeight: 800 }}>$25.000</span>
+                  </p>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, overflow: "hidden", background: "rgba(255,255,255,0.02)" }}>
+                  {[
+                    { label: "Partidos",    value: String(TOTAL_PARTIDOS_GRUPOS), color: "#ff7722" },
+                    { label: "Cerrados",    value: String(partidosBloqueados),    color: "#4f8cff" },
+                    { label: "Pronósticos", value: String(pronosticosCargados),   color: "#ffcc00" },
+                    { label: "Líder",       value: `${scores[0]?.points ?? 0}`,   color: "#e8357a", unit: "pts" },
+                  ].map(({ label, value, color, unit }, i) => (
+                    <div key={label} style={{ padding: "14px 10px", textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#444", marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, lineHeight: 1, color }}>
+                        {value}{unit && <span style={{ fontSize: 14, marginLeft: 3 }}>{unit}</span>}
+                      </div>
                     </div>
                   ))}
+                </div>
+              </div>
+              <div className="relative hidden md:flex flex-col justify-between overflow-hidden" style={{ borderLeft: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(255,196,0,0.12) 0%, transparent 65%)" }} />
+                <img src={WORLD_CUP_2030_LOGO} alt="Copa" className="absolute inset-0 w-full h-full object-cover object-center" style={{ opacity: 0.95, mixBlendMode: "luminosity" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #06060a 0%, transparent 35%)" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #06060a 0%, #06060a 18%, transparent 42%, transparent 72%, #06060a 100%)" }} />
+                <div className="relative z-10 mt-auto mx-5 mb-5" style={{ background: "rgba(4,4,10,0.88)", border: "1px solid rgba(255,255,255,0.07)", borderTop: "2px solid #ffcc00", borderRadius: "0 0 10px 10px", padding: "16px 18px", backdropFilter: "blur(12px)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.3em", textTransform: "uppercase", color: "#ffcc00", marginBottom: 12 }}>Premios</div>
+                  {[["🥇","1° Puesto","$700.000"],["🥈","2° Puesto","$200.000"],["🥉","3° Puesto","$100.000"]].map(([m,pos,amt]) => (
+                    <div key={pos} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <span style={{ fontSize: 13, marginRight: 8 }}>{m}</span>
+                      <span style={{ flex: 1, fontSize: 13, color: "#bbb" }}>{pos}</span>
+                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "#ffcc00" }}>{amt}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                    {[["8 pts","Resultado exacto"],["3 pts","Ganador / empate"],["+2 pts","Dif. de goles"],["+15 pts","Campeón correcto"]].map(([pts,desc]) => (
+                      <div key={desc} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#ff7722", whiteSpace: "nowrap" }}>{pts}</span>
+                        <span style={{ fontSize: 11, color: "#555", lineHeight: 1.3 }}>{desc}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      </div>{/* end hero z-index wrapper */}
 
-      {/* ── CONTENIDO PRINCIPAL ── */}
+      {/* Contenido */}
       <div id="contenido-principal" style={{ position: "relative", zIndex: 1 }} className="max-w-screen-xl mx-auto px-4 md:px-6 py-6 space-y-5">
 
-        {/* TAB BAR DESKTOP */}
+        {/* Tab bar desktop */}
         <div className="hidden md:block" style={{ borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)", background: "#0a0a10" }}>
           <div className="grid grid-cols-5">
             {navItems.map(({ key, label }) => {
-              const colors: Record<string, string> = { grupos: "#e8357a", eliminatorias: "#4f8cff", ranking: "#ffcc00", reglas: "#22c55e", miperfil: "#a78bfa" };
+              const colors: Record<string,string> = { grupos:"#e8357a", eliminatorias:"#4f8cff", ranking:"#ffcc00", reglas:"#22c55e", miperfil:"#a78bfa" };
               const ac = colors[key];
               return (
                 <button key={key} onClick={() => setTabActiva(key)} style={{
@@ -599,15 +680,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* TAB BAR MOBILE — solo las 3 principales */}
+        {/* Tab bar mobile */}
         <div className="md:hidden" style={{ borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)", background: "#0a0a10" }}>
           <div className="grid grid-cols-3">
-            {navItems.slice(0, 3).map(({ key, label }) => {
-              const colors: Record<string, string> = { grupos: "#e8357a", eliminatorias: "#4f8cff", ranking: "#ffcc00" };
+            {navItems.slice(0,3).map(({ key, label }) => {
+              const colors: Record<string,string> = { grupos:"#e8357a", eliminatorias:"#4f8cff", ranking:"#ffcc00" };
               const ac = colors[key] ?? "#ff7722";
               return (
                 <button key={key} onClick={() => setTabActiva(key)} style={{
-                  padding: "12px 6px", fontWeight: 800, fontSize: 12, transition: "color 0.2s, background 0.2s",
+                  padding: "12px 6px", fontWeight: 800, fontSize: 12,
                   borderTop: "none", borderLeft: "none", borderRight: "none",
                   borderBottom: `3px solid ${tabActiva === key ? ac : "transparent"}`,
                   color: tabActiva === key ? ac : "#555",
@@ -619,8 +700,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* PRÓXIMO PARTIDO */}
-        {(tabActiva === "grupos") && proximoPartido && (
+        {/* Próximo partido */}
+        {tabActiva === "grupos" && proximoPartido && (
           <div style={{ borderRadius: 14, border: "1px solid rgba(255,119,34,0.3)", background: "linear-gradient(135deg,#0f0f16,#0d0d14)", padding: "20px 24px" }}>
             <div className="grid md:grid-cols-[1fr_200px] gap-4 items-center">
               <div>
@@ -640,7 +721,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* MI PERFIL / INGRESAR */}
+        {/* Ingresar / Mi perfil */}
         {(tabActiva === "grupos" || tabActiva === "miperfil") && (
           <div style={{ borderRadius: 14, border: "1px solid rgba(124,58,237,0.4)", background: "#0d0d14", padding: "22px 24px" }}>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: "0.05em", marginBottom: 6 }}>
@@ -649,30 +730,30 @@ export default function Home() {
             {!playerId ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p style={{ fontSize: 13, color: "#555", marginBottom: 4 }}>Ingresá tu usuario BET30 para validar el acceso y un nombre para el ranking.</p>
-                <input style={{ width: "100%", padding: "12px 14px", borderRadius: 8, background: "#111118", border: "1px solid #222230", color: "#fff", fontSize: 14, outline: "none" }}
+                <input style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }}
                   placeholder="Usuario BET30" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
-                <input style={{ width: "100%", padding: "12px 14px", borderRadius: 8, background: "#111118", border: "1px solid #222230", color: "#fff", fontSize: 14, outline: "none" }}
+                <input style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }}
                   placeholder="Nombre o apodo para el ranking" value={nombreVisible} onChange={(e) => setNombreVisible(e.target.value)} />
-                <button onClick={registrarse} style={{ width: "100%", padding: "13px", borderRadius: 8, background: "linear-gradient(90deg,#ff7722,#ffcc00)", color: "#000", fontWeight: 900, fontSize: 15, border: "none", cursor: "pointer" }}>
+                <button onClick={registrarse} style={{ width:"100%", padding:"13px", borderRadius:8, background:"linear-gradient(90deg,#ff7722,#ffcc00)", color:"#000", fontWeight:900, fontSize:15, border:"none", cursor:"pointer" }}>
                   Ingresar
                 </button>
               </div>
             ) : (
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px", borderRadius: 10, background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.2)", marginBottom: 16 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(74,222,128,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>👤</div>
+                <div style={{ display:"flex", alignItems:"center", gap:16, padding:16, borderRadius:10, background:"rgba(74,222,128,0.05)", border:"1px solid rgba(74,222,128,0.2)", marginBottom:16 }}>
+                  <div style={{ width:44, height:44, borderRadius:"50%", background:"rgba(74,222,128,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>👤</div>
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: "#4ade80" }}>{nombreVisible || "Jugador"}</div>
-                    <div style={{ fontSize: 12, color: "#444" }}>Usuario BET30 · sesión activa</div>
+                    <div style={{ fontSize:16, fontWeight:800, color:"#4ade80" }}>{nombreVisible || "Jugador"}</div>
+                    <div style={{ fontSize:12, color:"#444" }}>Usuario BET30 · sesión activa</div>
                   </div>
                   {campeonGuardado && (
-                    <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                      <div style={{ fontSize: 10, color: "#666", marginBottom: 4 }}>Campeón elegido</div>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}><BanderaEquipo equipo={campeonGuardado} size="sm" /></div>
+                    <div style={{ marginLeft:"auto", textAlign:"right" }}>
+                      <div style={{ fontSize:10, color:"#666", marginBottom:4 }}>Campeón elegido</div>
+                      <div style={{ fontSize:13, fontWeight:700 }}><BanderaEquipo equipo={campeonGuardado} size="sm" /></div>
                     </div>
                   )}
                 </div>
-                <button onClick={cerrarSesion} style={{ padding: "10px 24px", borderRadius: 8, background: "rgba(232,53,122,0.1)", color: "#e8357a", fontWeight: 800, border: "1px solid rgba(232,53,122,0.3)", cursor: "pointer", fontSize: 14 }}>
+                <button onClick={cerrarSesion} style={{ padding:"10px 24px", borderRadius:8, background:"rgba(232,53,122,0.1)", color:"#e8357a", fontWeight:800, border:"1px solid rgba(232,53,122,0.3)", cursor:"pointer", fontSize:14 }}>
                   Cerrar sesión
                 </button>
               </div>
@@ -680,23 +761,23 @@ export default function Home() {
           </div>
         )}
 
-        {/* CAMPEÓN */}
+        {/* Campeón */}
         {(tabActiva === "grupos" || tabActiva === "miperfil") && (
           <div className="grid lg:grid-cols-[1fr_300px] gap-4">
-            <div style={{ borderRadius: 14, border: "1px solid rgba(255,204,0,0.2)", background: "#0d0d14", padding: "22px 24px" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.35em", textTransform: "uppercase", color: "#ffcc00", marginBottom: 8 }}>Bonus especial</div>
-              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, letterSpacing: "0.03em", marginBottom: 8 }}>Elegí al campeón del Mundial</h2>
-              <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
-                Si acertás el campeón sumás <span style={{ color: "#ffcc00", fontWeight: 800 }}>+15 puntos</span> al ranking.
+            <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.2)", background:"#0d0d14", padding:"22px 24px" }}>
+              <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.35em", textTransform:"uppercase", color:"#ffcc00", marginBottom:8 }}>Bonus especial</div>
+              <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:26, letterSpacing:"0.03em", marginBottom:8 }}>Elegí al campeón del Mundial</h2>
+              <p style={{ fontSize:13, color:"#666", marginBottom:16 }}>
+                Si acertás el campeón sumás <span style={{ color:"#ffcc00", fontWeight:800 }}>+15 puntos</span> al ranking.
               </p>
               <div className="grid md:grid-cols-[1fr_200px] gap-3">
                 <select value={campeon} onChange={(e) => setCampeon(e.target.value)}
-                  style={{ width: "100%", padding: "12px 14px", borderRadius: 8, background: "#111118", border: "1px solid #222230", color: "#fff", fontSize: 14, outline: "none" }}>
+                  style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }}>
                   <option value="">Seleccionar campeón</option>
                   {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <button onClick={guardarCampeon} disabled={!playerId} style={{
-                  padding: "12px 16px", borderRadius: 8, fontWeight: 900, fontSize: 14, border: "none",
+                  padding:"12px 16px", borderRadius:8, fontWeight:900, fontSize:14, border:"none",
                   cursor: playerId ? "pointer" : "not-allowed",
                   background: playerId ? "#ffcc00" : "#1a1a22", color: playerId ? "#000" : "#444",
                 }}>
@@ -704,22 +785,22 @@ export default function Home() {
                 </button>
               </div>
               {campeonGuardado && (
-                <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.2)" }}>
-                  <span style={{ fontSize: 13, color: "#4ade80", fontWeight: 700 }}>✅ Campeón guardado:</span>
+                <div style={{ marginTop:14, display:"flex", alignItems:"center", gap:8, padding:"10px 14px", borderRadius:8, background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.2)" }}>
+                  <span style={{ fontSize:13, color:"#4ade80", fontWeight:700 }}>✅ Campeón guardado:</span>
                   <BanderaEquipo equipo={campeonGuardado} size="sm" />
                 </div>
               )}
             </div>
-            <div style={{ borderRadius: 14, border: "1px solid rgba(255,204,0,0.18)", background: "#0d0d14", padding: "22px 20px" }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#ffcc00", marginBottom: 14 }}>🔥 Más elegidos</div>
+            <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.18)", background:"#0d0d14", padding:"22px 20px" }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"#ffcc00", marginBottom:14 }}>🔥 Más elegidos</div>
               {championStats.length === 0 ? (
-                <p style={{ fontSize: 13, color: "#444" }}>Todavía no hay campeones elegidos.</p>
+                <p style={{ fontSize:13, color:"#444" }}>Todavía no hay campeones elegidos.</p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {championStats.map((stat, i) => (
-                    <div key={stat.champion} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "#111118", border: "1px solid #1e1e28" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>#{i+1} <BanderaEquipo equipo={stat.champion} size="sm" /></div>
-                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#ffcc00" }}>{stat.count}</div>
+                    <div key={stat.champion} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px", borderRadius:8, background:"#111118", border:"1px solid #1e1e28" }}>
+                      <div style={{ fontSize:13, fontWeight:700 }}>#{i+1} <BanderaEquipo equipo={stat.champion} size="sm" /></div>
+                      <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:20, color:"#ffcc00" }}>{stat.count}</div>
                     </div>
                   ))}
                 </div>
@@ -728,238 +809,125 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB GRUPOS */}
+        {/* Tab Grupos */}
         {tabActiva === "grupos" && (
           <>
             <div className="grid md:grid-cols-2 gap-4">
-              <div style={{ borderRadius: 14, border: "1px solid rgba(124,58,237,0.35)", background: "#0d0d14", padding: "20px 22px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                  <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#ff7722", letterSpacing: "0.04em" }}>Top Prode</h2>
-                  <button onClick={() => setTabActiva("ranking")} style={{ fontSize: 12, fontWeight: 800, padding: "6px 14px", borderRadius: 6, background: "#2255ee", color: "#fff", border: "none", cursor: "pointer" }}>
+              <div style={{ borderRadius:14, border:"1px solid rgba(124,58,237,0.35)", background:"#0d0d14", padding:"20px 22px" }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                  <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#ff7722", letterSpacing:"0.04em" }}>Top Prode</h2>
+                  <button onClick={() => setTabActiva("ranking")} style={{ fontSize:12, fontWeight:800, padding:"6px 14px", borderRadius:6, background:"#2255ee", color:"#fff", border:"none", cursor:"pointer" }}>
                     Ver completo
                   </button>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {scores.length === 0 && <p style={{ fontSize: 13, color: "#444" }}>Todavía no hay puntos cargados.</p>}
-                  {scores.slice(0, 3).map((score, i) => (
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {scores.length === 0 && <p style={{ fontSize:13, color:"#444" }}>Todavía no hay puntos cargados.</p>}
+                  {scores.slice(0,3).map((score, i) => (
                     <div key={score.id} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "12px 14px", borderRadius: 10, border: "1px solid",
+                      display:"flex", alignItems:"center", justifyContent:"space-between",
+                      padding:"12px 14px", borderRadius:10, border:"1px solid",
                       borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":"rgba(249,115,22,0.3)",
                       background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":"rgba(249,115,22,0.04)",
                     }}>
-                      <span style={{ fontWeight: 800, fontSize: 15, display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i===0?"#ffcc00":i===1?"#aaa":"#cd7c3a", minWidth: 28 }}>{medallaRanking(i)}</span>
+                      <span style={{ fontWeight:800, fontSize:15, display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:i===0?"#ffcc00":i===1?"#aaa":"#cd7c3a", minWidth:28 }}>{medallaRanking(i)}</span>
                         {score.players?.full_name ?? "Sin nombre"}
                       </span>
-                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#ffcc00" }}>{score.points} pts</span>
+                      <span style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#ffcc00" }}>{score.points} pts</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div style={{ borderRadius: 14, border: "1px solid rgba(232,53,122,0.35)", background: "#0d0d14", padding: "20px 22px" }}>
-                <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#e8357a", letterSpacing: "0.04em", marginBottom: 16 }}>Premios</h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ borderRadius:14, border:"1px solid rgba(232,53,122,0.35)", background:"#0d0d14", padding:"20px 22px" }}>
+                <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#e8357a", letterSpacing:"0.04em", marginBottom:16 }}>Premios</h2>
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                   {[["1° Puesto","$700.000"],["2° Puesto","$200.000"],["3° Puesto","$100.000"]].map(([pos,amt]) => (
-                    <div key={pos} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15 }}>
-                      <span style={{ color: "#bbb" }}>{pos}</span>
-                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#ffcc00" }}>{amt}</span>
+                    <div key={pos} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:15 }}>
+                      <span style={{ color:"#bbb" }}>{pos}</span>
+                      <span style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:20, color:"#ffcc00" }}>{amt}</span>
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: 13 }}>
-                  <div style={{ fontWeight: 800, color: "#ff7722", marginBottom: 8 }}>Sistema de puntos</div>
+                <div style={{ marginTop:18, paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.06)", fontSize:13 }}>
+                  <div style={{ fontWeight:800, color:"#ff7722", marginBottom:8 }}>Sistema de puntos</div>
                   {["Resultado exacto: 8 pts","Ganador/empate correcto: 3 pts","Diferencia de gol correcta: +2 pts","Campeón correcto: +15 pts"].map((l) => (
-                    <div key={l} style={{ color: "#555", marginBottom: 3 }}>{l}</div>
+                    <div key={l} style={{ color:"#555", marginBottom:3 }}>{l}</div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div style={{ borderRadius: 14, border: "1px solid #1a1a24", background: "rgba(10,10,16,0.85)", padding: "20px 22px", backdropFilter: "blur(8px)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
-                <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: "0.04em" }}>Fixture y pronósticos</h2>
-                <button onClick={guardarTodosLosPronosticos} style={{ padding: "11px 22px", borderRadius: 8, background: "linear-gradient(90deg,#e8357a,#2255ee)", color: "#fff", fontWeight: 900, fontSize: 14, border: "none", cursor: "pointer" }}>
+            {/* Fixture */}
+            <div style={{ borderRadius:14, border:"1px solid #1a1a24", background:"rgba(10,10,16,0.85)", padding:"20px 22px", backdropFilter:"blur(8px)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18, flexWrap:"wrap", gap:10 }}>
+                <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:24, letterSpacing:"0.04em" }}>Fixture y pronósticos</h2>
+                <button onClick={guardarTodosLosPronosticos} style={{ padding:"11px 22px", borderRadius:8, background:"linear-gradient(90deg,#e8357a,#2255ee)", color:"#fff", fontWeight:900, fontSize:14, border:"none", cursor:"pointer" }}>
                   Guardar todos
                 </button>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {partidosPorGrupo.map(([grupo, partidos]) => {
                   const abierto = gruposAbiertos[grupo] ?? false;
                   return (
-                    <div key={grupo} style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #1a1a24" }}>
-                      {/* Grupo header con acento izquierdo */}
+                    <div key={grupo} style={{ borderRadius:12, overflow:"hidden", border:"1px solid #1a1a24" }}>
                       <button onClick={() => toggleGrupo(grupo)} style={{
-                        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "14px 18px", cursor: "pointer", border: "none",
-                        background: abierto
-                          ? "linear-gradient(90deg, rgba(255,119,34,0.08), rgba(255,119,34,0.02), transparent)"
-                          : "rgba(255,255,255,0.015)",
+                        width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+                        padding:"14px 18px", cursor:"pointer", border:"none",
+                        background: abierto ? "linear-gradient(90deg, rgba(255,119,34,0.08), rgba(255,119,34,0.02), transparent)" : "rgba(255,255,255,0.015)",
                         borderLeft: abierto ? "3px solid #ff7722" : "3px solid rgba(255,255,255,0.06)",
                       }}>
                         <div>
-                          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 17, letterSpacing: "0.06em", color: abierto ? "#ff7722" : "#555" }}>
+                          <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:17, letterSpacing:"0.06em", color: abierto ? "#ff7722" : "#555" }}>
                             {abierto ? "▼" : "▶"} {grupo}
                           </div>
-                          <div style={{ fontSize: 11, color: "#444", marginTop: 2, fontWeight: 600, letterSpacing: "0.05em" }}>{partidos.length} partidos</div>
+                          <div style={{ fontSize:11, color:"#444", marginTop:2, fontWeight:600 }}>{partidos.length} partidos</div>
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: "#ffcc00", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#ffcc00", letterSpacing:"0.1em", textTransform:"uppercase" }}>
                           {abierto ? "Ocultar" : "Ver partidos"}
                         </span>
                       </button>
 
                       {abierto && (
-                        <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6, background: "rgba(0,0,0,0.2)" }}>
-                          {partidos.map((match) => {
-                            const bloqueado = partidoBloqueado(match);
-                            return (
-                              <div key={match.id} className="match-card-grid" style={{
-  borderRadius: 10,
-  overflow: "hidden",
-  border: `1px solid ${bloqueado ? "#161620" : "#1e1e2a"}`,
-  background: bloqueado ? "rgba(8,8,12,0.6)" : "rgba(14,14,22,0.9)",
-  opacity: bloqueado ? 0.65 : 1,
-  position: "relative",
-}}>
-                                {/* Línea top sutil */}
-                                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: bloqueado ? "transparent" : "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)" }} />
+                        <div style={{ padding:"10px 12px", display:"flex", flexDirection:"column", gap:6, background:"rgba(0,0,0,0.2)" }}>
+                          {partidos.map((match) => <MatchCard key={match.id} match={match} />)}
 
-                                {/* Equipo local */}
-                                <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-                                  {FLAG_CODES[match.home_team] && (
-                                    <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.home_team]}.png`} alt={match.home_team}
-                                      style={{ width: 28, height: 20, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
-                                  )}
-                                  <div>
-                                    <div style={{ fontSize: 9, color: "#ff7722", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>Local</div>
-                                    <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd", whiteSpace: "nowrap" }}>{match.home_team}</div>
-                                  </div>
-                                </div>
-
-                                {/* Scoreboard central */}
-                                <div style={{
-                                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                                  padding: "12px 8px", gap: 6,
-                                  background: "rgba(0,0,0,0.3)",
-                                  borderLeft: "1px solid #1a1a24", borderRight: "1px solid #1a1a24",
-                                  height: "100%",
-                                }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                    <input
-                                      disabled={bloqueado}
-                                      type="number" min="0" placeholder="—"
-                                      value={predictions[match.id]?.home ?? ""}
-                                      onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: e.target.value, away: prev[match.id]?.away ?? "" } }))}
-                                      style={{
-                                        width: 48, height: 44,
-                                        background: bloqueado ? "#0a0a10" : "#111118",
-                                        border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
-                                        borderRadius: 6, textAlign: "center",
-                                        fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
-                                        color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
-                                      }}
-                                    />
-                                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#333", lineHeight: 1 }}>—</span>
-                                    <input
-                                      disabled={bloqueado}
-                                      type="number" min="0" placeholder="—"
-                                      value={predictions[match.id]?.away ?? ""}
-                                      onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: prev[match.id]?.home ?? "", away: e.target.value } }))}
-                                      style={{
-                                        width: 48, height: 44,
-                                        background: bloqueado ? "#0a0a10" : "#111118",
-                                        border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
-                                        borderRadius: 6, textAlign: "center",
-                                        fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
-                                        color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
-                                      }}
-                                    />
-                                  </div>
-                                  <div style={{ fontSize: 10, color: "#444", fontWeight: 600, textAlign: "center" }}>
-                                    {formatearFecha(match.match_date)}
-                                  </div>
-                                  {bloqueado ? (
-                                    <div style={{ fontSize: 10, fontWeight: 800, color: "#e8357a", letterSpacing: "0.08em", textTransform: "uppercase" }}>Cerrado</div>
-                                  ) : (
-                                    <button onClick={() => guardarPronostico(match.id)} style={{
-                                      padding: "6px 14px", borderRadius: 6,
-                                      background: "linear-gradient(135deg,#ff7722,#ffcc00)",
-                                      color: "#000", fontSize: 11, fontWeight: 900, border: "none",
-                                      cursor: "pointer", letterSpacing: "0.05em", textTransform: "uppercase",
-                                    }}>
-                                      Guardar
-                                    </button>
-                                  )}
-                                </div>
-
-                                {/* Equipo visitante */}
-                                <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexDirection: "row-reverse" }}>
-                                  {FLAG_CODES[match.away_team] && (
-                                    <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.away_team]}.png`} alt={match.away_team}
-                                      style={{ width: 28, height: 20, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
-                                  )}
-                                  <div style={{ textAlign: "right" }}>
-                                    <div style={{ fontSize: 9, color: "#4f8cff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>Visitante</div>
-                                    <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd", whiteSpace: "nowrap" }}>{match.away_team}</div>
-                                  </div>
-                                </div>
-
-                              </div>
-                            );
-                          })}
-
-                          {/* TABLA DE POSICIONES DEL GRUPO */}
+                          {/* Tabla de posiciones */}
                           {(() => {
-                            const tabla = standings
-                              .filter(s => s.group_name === grupo)
-                              .sort((a, b) => b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against));
+                            const tabla = standings.filter(s => s.group_name === grupo).sort((a,b) => b.points - a.points || (b.goals_for-b.goals_against)-(a.goals_for-a.goals_against));
                             if (tabla.length === 0) return null;
                             return (
-                              <div style={{ marginTop: 8, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(34,197,94,0.2)" }}>
-                                <div style={{
-                                  padding: "10px 16px",
-                                  background: "linear-gradient(90deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02), transparent)",
-                                  borderLeft: "3px solid #22c55e",
-                                  display: "flex", alignItems: "center", gap: 8,
-                                }}>
+                              <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", border:"1px solid rgba(34,197,94,0.2)" }}>
+                                <div style={{ padding:"10px 16px", background:"linear-gradient(90deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02), transparent)", borderLeft:"3px solid #22c55e", display:"flex", alignItems:"center", gap:8 }}>
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
                                   </svg>
-                                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "#22c55e" }}>
-                                    Tabla de posiciones
-                                  </span>
+                                  <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.2em", textTransform:"uppercase", color:"#22c55e" }}>Tabla de posiciones</span>
                                 </div>
-                                <div style={{ background: "rgba(0,0,0,0.3)", overflowX: "auto" }}>
-                                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                                <div style={{ background:"rgba(0,0,0,0.3)", overflowX:"auto" }}>
+                                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                                     <thead>
-                                      <tr style={{ borderBottom: "1px solid #1a1a24" }}>
-                                        <th style={{ textAlign: "left", padding: "8px 14px", color: "#555", fontWeight: 700, fontSize: 10, letterSpacing: "0.1em" }}>Equipo</th>
+                                      <tr style={{ borderBottom:"1px solid #1a1a24" }}>
+                                        <th style={{ textAlign:"left", padding:"8px 14px", color:"#555", fontWeight:700, fontSize:10 }}>Equipo</th>
                                         {["PJ","G","E","P","GF","GC","DG"].map(h => (
-                                          <th key={h} style={{ textAlign: "center", padding: "8px 8px", color: "#555", fontWeight: 700, fontSize: 10, letterSpacing: "0.1em" }}>{h}</th>
+                                          <th key={h} style={{ textAlign:"center", padding:"8px 8px", color:"#555", fontWeight:700, fontSize:10 }}>{h}</th>
                                         ))}
-                                        <th style={{ textAlign: "center", padding: "8px 10px", color: "#ffcc00", fontWeight: 800, fontSize: 10, letterSpacing: "0.1em" }}>Pts</th>
+                                        <th style={{ textAlign:"center", padding:"8px 10px", color:"#ffcc00", fontWeight:800, fontSize:10 }}>Pts</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {tabla.map((s, i) => (
-                                        <tr key={s.id} style={{
-                                          borderBottom: "1px solid rgba(255,255,255,0.03)",
-                                          background: i === 0 ? "rgba(34,197,94,0.07)" : i === 1 ? "rgba(34,197,94,0.03)" : "transparent",
-                                        }}>
-                                          <td style={{ padding: "9px 14px" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                              <span style={{ fontSize: 11, color: i < 2 ? "#22c55e" : "#444", fontWeight: 800, minWidth: 16 }}>{i + 1}</span>
-                                              {FLAG_CODES[s.team] && (
-                                                <img src={`https://flagcdn.com/w40/${FLAG_CODES[s.team]}.png`} alt={s.team}
-                                                  style={{ width: 22, height: 16, borderRadius: 2, objectFit: "cover", border: "1px solid rgba(255,255,255,0.08)" }} />
-                                              )}
-                                              <span style={{ fontWeight: 700, color: "#ccc", whiteSpace: "nowrap" }}>{s.team}</span>
+                                        <tr key={s.id} style={{ borderBottom:"1px solid rgba(255,255,255,0.03)", background: i===0?"rgba(34,197,94,0.07)":i===1?"rgba(34,197,94,0.03)":"transparent" }}>
+                                          <td style={{ padding:"9px 14px" }}>
+                                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                              <span style={{ fontSize:11, color:i<2?"#22c55e":"#444", fontWeight:800, minWidth:16 }}>{i+1}</span>
+                                              {FLAG_CODES[s.team] && <img src={`https://flagcdn.com/w40/${FLAG_CODES[s.team]}.png`} alt={s.team} style={{ width:22, height:16, borderRadius:2, objectFit:"cover" }} />}
+                                              <span style={{ fontWeight:700, color:"#ccc", whiteSpace:"nowrap" }}>{s.team}</span>
                                             </div>
                                           </td>
-                                          {[s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against, s.goals_for - s.goals_against].map((v, vi) => (
-                                            <td key={vi} style={{ textAlign: "center", padding: "9px 8px", color: "#777" }}>{v}</td>
+                                          {[s.played,s.won,s.drawn,s.lost,s.goals_for,s.goals_against,s.goals_for-s.goals_against].map((v,vi) => (
+                                            <td key={vi} style={{ textAlign:"center", padding:"9px 8px", color:"#777" }}>{v}</td>
                                           ))}
-                                          <td style={{ textAlign: "center", padding: "9px 10px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "#ffcc00" }}>{s.points}</td>
+                                          <td style={{ textAlign:"center", padding:"9px 10px", fontFamily:"'Bebas Neue', sans-serif", fontSize:16, color:"#ffcc00" }}>{s.points}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -978,18 +946,18 @@ export default function Home() {
           </>
         )}
 
-        {/* TAB ELIMINATORIAS */}
+        {/* Tab Eliminatorias */}
         {tabActiva === "eliminatorias" && (
-          <div style={{ borderRadius: 14, border: "1px solid rgba(34,85,238,0.35)", background: "#0d0d14", padding: "24px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.4em", textTransform: "uppercase", color: "#4f8cff", marginBottom: 10 }}>Eliminatorias</div>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, marginBottom: 8 }}>Cruces eliminatorios</h2>
-            <p style={{ fontSize: 14, color: "#555", marginBottom: 24 }}>Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.</p>
+          <div style={{ borderRadius:14, border:"1px solid rgba(34,85,238,0.35)", background:"#0d0d14", padding:"24px" }}>
+            <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.4em", textTransform:"uppercase", color:"#4f8cff", marginBottom:10 }}>Eliminatorias</div>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:8 }}>Cruces eliminatorios</h2>
+            <p style={{ fontSize:14, color:"#555", marginBottom:24 }}>Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.</p>
             <div className="grid gap-4 md:grid-cols-3">
               {["Dieciseisavos","Octavos","Cuartos","Semifinales","Tercer puesto","Final"].map((fase) => (
-                <div key={fase} style={{ borderRadius: 12, border: "1px solid #1a1a24", background: "#111118", padding: "18px 20px" }}>
-                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>{fase}</div>
-                  <div style={{ fontSize: 13, color: "#444", marginBottom: 14 }}>Próximamente disponible.</div>
-                  <button style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid rgba(34,85,238,0.3)", background: "rgba(34,85,238,0.05)", color: "#4f8cff", fontWeight: 800, fontSize: 13, cursor: "default" }}>
+                <div key={fase} style={{ borderRadius:12, border:"1px solid #1a1a24", background:"#111118", padding:"18px 20px" }}>
+                  <div style={{ fontWeight:800, fontSize:16, marginBottom:8 }}>{fase}</div>
+                  <div style={{ fontSize:13, color:"#444", marginBottom:14 }}>Próximamente disponible.</div>
+                  <button style={{ width:"100%", padding:"10px", borderRadius:8, border:"1px solid rgba(34,85,238,0.3)", background:"rgba(34,85,238,0.05)", color:"#4f8cff", fontWeight:800, fontSize:13, cursor:"default" }}>
                     Bloqueado
                   </button>
                 </div>
@@ -998,84 +966,55 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB RANKING */}
+        {/* Tab Ranking */}
         {tabActiva === "ranking" && (
-          <div style={{ borderRadius: 14, border: "1px solid rgba(255,204,0,0.35)", background: "#0d0d14", padding: "24px" }}>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: "#ffcc00", marginBottom: 20, letterSpacing: "0.04em" }}>Ranking completo</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {scores.length === 0 && <p style={{ fontSize: 13, color: "#444" }}>Todavía no hay puntos cargados.</p>}
+          <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.35)", background:"#0d0d14", padding:"24px" }}>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, color:"#ffcc00", marginBottom:20, letterSpacing:"0.04em" }}>Ranking completo</h2>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {scores.length === 0 && <p style={{ fontSize:13, color:"#444" }}>Todavía no hay puntos cargados.</p>}
               {scores.map((score, i) => (
                 <div key={score.id} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "14px 18px", borderRadius: 10, border: "1px solid",
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  padding:"14px 18px", borderRadius:10, border:"1px solid",
                   borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":i===2?"rgba(249,115,22,0.3)":"#1a1a24",
                   background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":i===2?"rgba(249,115,22,0.04)":"#111118",
                 }}>
-                  <span style={{ fontWeight: 800, fontSize: 15, display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i===0?"#ffcc00":i===1?"#aaa":i===2?"#cd7c3a":"#333", minWidth: 28 }}>{medallaRanking(i)}</span>
+                  <span style={{ fontWeight:800, fontSize:15, display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:i===0?"#ffcc00":i===1?"#aaa":i===2?"#cd7c3a":"#333", minWidth:28 }}>{medallaRanking(i)}</span>
                     {score.players?.full_name ?? "Sin nombre"}
                   </span>
-                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#ffcc00" }}>{score.points} pts</span>
+                  <span style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#ffcc00" }}>{score.points} pts</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* TAB REGLAS */}
+        {/* Tab Reglas */}
         {tabActiva === "reglas" && (
-          <div style={{ borderRadius: 14, border: "1px solid rgba(34,197,94,0.3)", background: "#0d0d14", padding: "28px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.4em", textTransform: "uppercase", color: "#22c55e", marginBottom: 10 }}>Información</div>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, marginBottom: 24, letterSpacing: "0.04em" }}>Reglas del Prode</h2>
+          <div style={{ borderRadius:14, border:"1px solid rgba(34,197,94,0.3)", background:"#0d0d14", padding:"28px" }}>
+            <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.4em", textTransform:"uppercase", color:"#22c55e", marginBottom:10 }}>Información</div>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:24, letterSpacing:"0.04em" }}>Reglas del Prode</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {[
-                {
-                  titulo: "¿Cómo participar?",
-                  texto: "Ingresá con tu usuario BET30 con una carga mínima de $25.000. Una vez validado, podés empezar a cargar tus pronósticos.",
-                  color: "#ff7722",
-                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff7722" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                },
-                {
-                  titulo: "Sistema de puntos",
-                  texto: "Resultado exacto: 8 pts. Ganador o empate correcto: 3 pts. Diferencia de goles correcta: +2 pts adicionales. Campeón correcto: +15 pts bonus.",
-                  color: "#ffcc00",
-                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                },
-                {
-                  titulo: "Cierre de pronósticos",
-                  texto: "Cada partido se cierra automáticamente al inicio del mismo. No se pueden modificar los pronósticos una vez cerrado el partido.",
-                  color: "#e8357a",
-                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8357a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                },
-                {
-                  titulo: "Campeón del torneo",
-                  texto: "Podés elegir el campeón del Mundial en cualquier momento antes de que inicie el torneo. Si acertás sumás +15 puntos al ranking final.",
-                  color: "#4f8cff",
-                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f8cff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                },
-                {
-                  titulo: "Premios",
-                  texto: "1° Puesto: $700.000 · 2° Puesto: $200.000 · 3° Puesto: $100.000. Los premios se acreditan al finalizar el torneo.",
-                  color: "#22c55e",
-                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                },
-                {
-                  titulo: "Desempate",
-                  texto: "En caso de empate en puntos, se desempata por mayor cantidad de resultados exactos, luego por ganador/empate correctos.",
-                  color: "#a78bfa",
-                  svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                },
+                { titulo:"¿Cómo participar?", texto:"Ingresá con tu usuario BET30 con una carga mínima de $25.000. Una vez validado, podés empezar a cargar tus pronósticos.", color:"#ff7722",
+                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff7722" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+                { titulo:"Sistema de puntos", texto:"Resultado exacto: 8 pts. Ganador o empate correcto: 3 pts. Diferencia de goles correcta: +2 pts adicionales. Campeón correcto: +15 pts bonus.", color:"#ffcc00",
+                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> },
+                { titulo:"Cierre de pronósticos", texto:"Cada partido se cierra automáticamente al inicio del mismo. No se pueden modificar los pronósticos una vez cerrado el partido.", color:"#e8357a",
+                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8357a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> },
+                { titulo:"Campeón del torneo", texto:"Podés elegir el campeón del Mundial en cualquier momento antes de que inicie el torneo. Si acertás sumás +15 puntos al ranking final.", color:"#4f8cff",
+                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f8cff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> },
+                { titulo:"Premios", texto:"1° Puesto: $700.000 · 2° Puesto: $200.000 · 3° Puesto: $100.000. Los premios se acreditan al finalizar el torneo.", color:"#22c55e",
+                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+                { titulo:"Desempate", texto:"En caso de empate en puntos, se desempata por mayor cantidad de resultados exactos, luego por ganador/empate correctos.", color:"#a78bfa",
+                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
               ].map(({ titulo, texto, color, svg }) => (
-                <div key={titulo} style={{
-                  padding: "20px 22px", borderRadius: 12,
-                  background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))",
-                  border: "1px solid #1e1e2a",
-                  position: "relative", overflow: "hidden",
-                }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: color, borderRadius: "3px 0 0 3px" }} />
-                  <div style={{ marginBottom: 12, marginLeft: 4 }}>{svg}</div>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6, color: "#e0e0e0", marginLeft: 4 }}>{titulo}</div>
-                  <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginLeft: 4 }}>{texto}</div>
+                <div key={titulo} style={{ padding:"20px 22px", borderRadius:12, background:"linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))", border:"1px solid #1e1e2a", position:"relative", overflow:"hidden" }}>
+                  <div style={{ position:"absolute", top:0, left:0, width:3, height:"100%", background:color }} />
+                  <div style={{ marginBottom:12, marginLeft:4 }}>{svg}</div>
+                  <div style={{ fontWeight:800, fontSize:15, marginBottom:6, color:"#e0e0e0", marginLeft:4 }}>{titulo}</div>
+                  <div style={{ fontSize:13, color:"#666", lineHeight:1.7, marginLeft:4 }}>{texto}</div>
                 </div>
               ))}
             </div>
