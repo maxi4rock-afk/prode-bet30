@@ -15,6 +15,7 @@ type Match = {
   odd_home: number | null;
   odd_draw: number | null;
   odd_away: number | null;
+  force_unlocked: boolean | null;
 };
 
 type Score = {
@@ -189,13 +190,12 @@ export default function Home() {
   }
 
   function partidoBloqueado(match: Match) {
-  if (match.locked === true) return true;
-  if (match.locked === false) return false;
-  if (!match.match_date) return false;
-  const f = new Date(match.match_date);
-  if (isNaN(f.getTime())) return false;
-  return f.getTime() <= Date.now();
-}
+    if (match.locked) return true;
+    if (!match.match_date) return false;
+    const f = new Date(match.match_date);
+    if (isNaN(f.getTime())) return false;
+    return f.getTime() <= Date.now();
+  }
 
   function navegarA(tab: typeof tabActiva) {
     setTabActiva(tab);
@@ -205,7 +205,7 @@ export default function Home() {
 
   async function cargarPartidos() {
     const { data, error } = await supabase.from("matches")
-      .select("id, phase, match_date, home_team, away_team, locked, real_home_goals, real_away_goals, odd_home, odd_draw, odd_away")
+      .select("id, phase, match_date, home_team, away_team, locked, real_home_goals, real_away_goals, odd_home, odd_draw, odd_away, force_unlocked")
       .order("match_date", { ascending: true });
     if (error) { showToast("Error al cargar partidos.", "error"); return; }
     setMatches(data ?? []);
