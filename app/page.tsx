@@ -190,12 +190,13 @@ export default function Home() {
   }
 
   function partidoBloqueado(match: Match) {
-    if (match.locked) return true;
-    if (!match.match_date) return false;
-    const f = new Date(match.match_date);
-    if (isNaN(f.getTime())) return false;
-    return f.getTime() <= Date.now();
-  }
+  if (match.force_unlocked) return false;  // admin desbloqueó explícitamente
+  if (match.locked) return true;           // admin bloqueó manualmente
+  if (!match.match_date) return false;
+  const f = new Date(match.match_date);
+  if (isNaN(f.getTime())) return false;
+  return f.getTime() <= Date.now();        // bloqueo automático por fecha
+}
 
   function navegarA(tab: typeof tabActiva) {
     setTabActiva(tab);
