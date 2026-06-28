@@ -83,7 +83,7 @@ export default function Home() {
   const [championStats, setChampionStats] = useState<ChampionStat[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [ahora, setAhora] = useState(Date.now());
-  const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking" | "reglas" | "miperfil">("grupos");
+  const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking" | "reglas" | "miperfil">("eliminatorias");
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -254,8 +254,8 @@ export default function Home() {
   }
 
   const navItems = [
-    { key: "grupos",        label: "Fase de grupos",   desc: "Pronosticá los 72 partidos" },
     { key: "eliminatorias", label: "Eliminatorias",    desc: "Dieciseisavos de final" },
+    { key: "grupos",        label: "Fase de grupos",   desc: "Pronosticá los 72 partidos" },
     { key: "ranking",       label: "Ranking",          desc: "Tabla de posiciones" },
     { key: "reglas",        label: "Reglas",           desc: "Cómo funciona el prode" },
     { key: "miperfil",      label: "Mi perfil",        desc: "Tu cuenta y campeón" },
