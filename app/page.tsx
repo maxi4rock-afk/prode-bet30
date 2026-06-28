@@ -4,61 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 
 type Match = {
-  id: string;
-  phase: string;
-  match_date: string | null;
-  home_team: string;
-  away_team: string;
+  id: string; phase: string; match_date: string | null;
+  home_team: string; away_team: string;
   locked: boolean | null;
-  real_home_goals: number | null;
-  real_away_goals: number | null;
-  odd_home: number | null;
-  odd_draw: number | null;
-  odd_away: number | null;
+  real_home_goals: number | null; real_away_goals: number | null;
+  odd_home: number | null; odd_draw: number | null; odd_away: number | null;
   force_unlocked: boolean | null;
 };
 
-type Score = {
-  id: string;
-  points: number;
-  players: {
-    full_name: string;
-    casino_user: string;
-  } | null;
-};
-
-type PredictionInput = {
-  home: string;
-  away: string;
-};
-
-type ChampionStat = {
-  champion: string;
-  count: number;
-};
-
-type Standing = {
-  id: string;
-  group_name: string;
-  team: string;
-  played: number;
-  won: number;
-  drawn: number;
-  lost: number;
-  goals_for: number;
-  goals_against: number;
-  points: number;
-};
-
-type Toast = {
-  id: number;
-  message: string;
-  type: "success" | "error";
-};
+type Score = { id: string; points: number; players: { full_name: string; casino_user: string; } | null; };
+type PredictionInput = { home: string; away: string; };
+type ChampionStat = { champion: string; count: number; };
+type Standing = { id: string; group_name: string; team: string; played: number; won: number; drawn: number; lost: number; goals_for: number; goals_against: number; points: number; };
+type Toast = { id: number; message: string; type: "success" | "error"; };
 
 const WORLD_CUP_2030_LOGO = "/trophy-hero.png";
 const BET30_LOGO = "/bet30-logo.png";
-const TOTAL_PARTIDOS_GRUPOS = 72;
+const TOTAL_PARTIDOS = 88; // 72 grupos + 16 eliminatorias
 
 const FLAG_CODES: Record<string, string> = {
   México: "mx", Sudáfrica: "za", "Corea del Sur": "kr", "República Checa": "cz",
@@ -79,12 +41,7 @@ function BanderaEquipo({ equipo, size = "md" }: { equipo: string; size?: "sm" | 
   const code = FLAG_CODES[equipo];
   return (
     <span className="inline-flex items-center gap-2">
-      {code ? (
-        <img src={`https://flagcdn.com/w40/${code}.png`} alt={equipo}
-          className={size === "sm" ? "h-4 w-6 rounded object-cover border border-white/10" : "h-5 w-7 rounded object-cover border border-zinc-600"} />
-      ) : (
-        <div className={size === "sm" ? "h-4 w-6 bg-zinc-700 rounded" : "h-5 w-7 bg-zinc-700 rounded"} />
-      )}
+      {code ? <img src={`https://flagcdn.com/w40/${code}.png`} alt={equipo} className={size === "sm" ? "h-4 w-6 rounded object-cover border border-white/10" : "h-5 w-7 rounded object-cover border border-zinc-600"} /> : <div className={size === "sm" ? "h-4 w-6 bg-zinc-700 rounded" : "h-5 w-7 bg-zinc-700 rounded"} />}
       <span>{equipo}</span>
     </span>
   );
@@ -110,6 +67,8 @@ function cuentaRegresiva(fecha: string | null, ahora: number) {
   if (horas > 0) return `${horas}h ${minutos}m`;
   return `${minutos}m`;
 }
+
+function esEliminatoria(phase: string) { return !phase.startsWith("Grupo"); }
 
 export default function Home() {
   const [usuario, setUsuario] = useState("");
@@ -139,43 +98,30 @@ export default function Home() {
     const savedPlayerId = localStorage.getItem("playerId");
     const savedUsuario = localStorage.getItem("usuario");
     const savedNombreVisible = localStorage.getItem("nombreVisible");
-    if (savedPlayerId) {
-      setPlayerId(savedPlayerId);
-      cargarPronosticos(savedPlayerId);
-      cargarCampeon(savedPlayerId);
-      showToast("✅ Sesión recuperada.");
-    }
+    if (savedPlayerId) { setPlayerId(savedPlayerId); cargarPronosticos(savedPlayerId); cargarCampeon(savedPlayerId); showToast("✅ Sesión recuperada."); }
     if (savedUsuario) setUsuario(savedUsuario);
     if (savedNombreVisible) setNombreVisible(savedNombreVisible);
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => setAhora(Date.now()), 60000);
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => { const interval = setInterval(() => setAhora(Date.now()), 60000); return () => clearInterval(interval); }, []);
+  useEffect(() => { if (menuAbierto) { document.body.style.overflow = "hidden"; } else { document.body.style.overflow = ""; } return () => { document.body.style.overflow = ""; }; }, [menuAbierto]);
 
-  useEffect(() => {
-    if (menuAbierto) { document.body.style.overflow = "hidden"; }
-    else { document.body.style.overflow = ""; }
-    return () => { document.body.style.overflow = ""; };
-  }, [menuAbierto]);
+  const matchesGrupos = useMemo(() => matches.filter(m => !esEliminatoria(m.phase)), [matches]);
+  const matchesEliminatorias = useMemo(() => matches.filter(m => esEliminatoria(m.phase)), [matches]);
 
   const partidosPorGrupo = useMemo(() => {
     const grupos: Record<string, Match[]> = {};
-    matches.forEach((m) => { if (!grupos[m.phase]) grupos[m.phase] = []; grupos[m.phase].push(m); });
+    matchesGrupos.forEach((m) => { if (!grupos[m.phase]) grupos[m.phase] = []; grupos[m.phase].push(m); });
     return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b));
-  }, [matches]);
+  }, [matchesGrupos]);
 
   const proximoPartido = useMemo(() => {
-    return matches
-      .filter((m) => m.match_date)
-      .filter((m) => { const f = new Date(m.match_date as string).getTime(); return !isNaN(f) && f > ahora; })
+    return matches.filter((m) => m.match_date).filter((m) => { const f = new Date(m.match_date as string).getTime(); return !isNaN(f) && f > ahora; })
       .sort((a, b) => new Date(a.match_date as string).getTime() - new Date(b.match_date as string).getTime())[0] ?? null;
   }, [matches, ahora]);
 
   const partidosBloqueados = useMemo(() => matches.filter(partidoBloqueado).length, [matches, ahora]);
-  const pronosticosCargados = useMemo(() =>
-    Object.values(predictions).filter((p) => p.home !== "" && p.away !== "").length, [predictions]);
+  const pronosticosCargados = useMemo(() => Object.values(predictions).filter((p) => p.home !== "" && p.away !== "").length, [predictions]);
 
   function toggleGrupo(g: string) { setGruposAbiertos((prev) => ({ ...prev, [g]: !(prev[g] ?? false) })); }
   function normalizarUsuario(v: string) { return String(v || "").toLowerCase().trim().replace(/\s+/g, ""); }
@@ -190,24 +136,21 @@ export default function Home() {
   }
 
   function partidoBloqueado(match: Match) {
-  if (match.force_unlocked) return false;  // admin desbloqueó explícitamente
-  if (match.locked) return true;           // admin bloqueó manualmente
-  if (!match.match_date) return false;
-  const f = new Date(match.match_date);
-  if (isNaN(f.getTime())) return false;
-  return f.getTime() <= Date.now();        // bloqueo automático por fecha
-}
+    if (match.force_unlocked) return false;
+    if (match.locked) return true;
+    if (!match.match_date) return false;
+    const f = new Date(match.match_date);
+    if (isNaN(f.getTime())) return false;
+    return f.getTime() <= Date.now();
+  }
 
   function navegarA(tab: typeof tabActiva) {
-    setTabActiva(tab);
-    setMenuAbierto(false);
+    setTabActiva(tab); setMenuAbierto(false);
     setTimeout(() => { document.getElementById("contenido-principal")?.scrollIntoView({ behavior: "smooth" }); }, 100);
   }
 
   async function cargarPartidos() {
-    const { data, error } = await supabase.from("matches")
-      .select("id, phase, match_date, home_team, away_team, locked, real_home_goals, real_away_goals, odd_home, odd_draw, odd_away, force_unlocked")
-      .order("match_date", { ascending: true });
+    const { data, error } = await supabase.from("matches").select("id, phase, match_date, home_team, away_team, locked, real_home_goals, real_away_goals, odd_home, odd_draw, odd_away, force_unlocked").order("match_date", { ascending: true });
     if (error) { showToast("Error al cargar partidos.", "error"); return; }
     setMatches(data ?? []);
   }
@@ -248,10 +191,7 @@ export default function Home() {
   async function guardarCampeon() {
     if (!playerId) { showToast("Primero ingresá con tu usuario BET30.", "error"); return; }
     if (!campeon) { showToast("Elegí un campeón antes de guardar.", "error"); return; }
-    const { error } = await supabase.from("champion_predictions").upsert(
-      { player_id: playerId, champion: campeon, updated_at: new Date().toISOString() },
-      { onConflict: "player_id" }
-    );
+    const { error } = await supabase.from("champion_predictions").upsert({ player_id: playerId, champion: campeon, updated_at: new Date().toISOString() }, { onConflict: "player_id" });
     if (error) { showToast("Error al guardar campeón.", "error"); return; }
     setCampeonGuardado(campeon); await cargarCampeonesElegidos();
     showToast(`🏆 Campeón guardado: ${campeon}. Si acierta suma +15 pts.`);
@@ -264,9 +204,7 @@ export default function Home() {
     if (!nombreRanking) { showToast("Ingresá un nombre o apodo para el ranking.", "error"); return; }
     const { data: allowedUsers, error: authError } = await supabase.from("allowed_players").select("casino_user");
     if (authError) { showToast("Error al validar acceso.", "error"); return; }
-    if (!(allowedUsers || []).some((u) => normalizarUsuario(u.casino_user) === usuarioLimpio)) {
-      showToast("No estás habilitado para participar. Contactá con soporte.", "error"); return;
-    }
+    if (!(allowedUsers || []).some((u) => normalizarUsuario(u.casino_user) === usuarioLimpio)) { showToast("No estás habilitado para participar. Contactá con soporte.", "error"); return; }
     const { data: players, error: searchError } = await supabase.from("players").select("id, full_name, casino_user");
     if (searchError) { showToast("Error al buscar usuario.", "error"); return; }
     const existing = (players || []).find((p) => normalizarUsuario(p.casino_user) === usuarioLimpio);
@@ -294,19 +232,14 @@ export default function Home() {
     const pred = predictions[matchId];
     if (!pred || pred.home === "" || pred.away === "") { showToast("Completá los goles del partido.", "error"); return; }
     if (Number(pred.home) < 0 || Number(pred.away) < 0) { showToast("Los goles no pueden ser negativos.", "error"); return; }
-    const { error } = await supabase.from("predictions").upsert(
-      { player_id: playerId, match_id: matchId, predicted_home_goals: Number(pred.home), predicted_away_goals: Number(pred.away) },
-      { onConflict: "player_id,match_id" }
-    );
+    const { error } = await supabase.from("predictions").upsert({ player_id: playerId, match_id: matchId, predicted_home_goals: Number(pred.home), predicted_away_goals: Number(pred.away) }, { onConflict: "player_id,match_id" });
     if (error) { showToast("Error al guardar pronóstico.", "error"); return; }
     showToast("✅ Pronóstico guardado.");
   }
 
   async function guardarTodosLosPronosticos() {
     if (!playerId) { showToast("Primero ingresá con tu usuario BET30.", "error"); return; }
-    const toSave = matches
-      .filter((m) => !partidoBloqueado(m))
-      .filter((m) => { const p = predictions[m.id]; return p && p.home !== "" && p.away !== "" && Number(p.home) >= 0 && Number(p.away) >= 0; })
+    const toSave = matches.filter((m) => !partidoBloqueado(m)).filter((m) => { const p = predictions[m.id]; return p && p.home !== "" && p.away !== "" && Number(p.home) >= 0 && Number(p.away) >= 0; })
       .map((m) => ({ player_id: playerId, match_id: m.id, predicted_home_goals: Number(predictions[m.id].home), predicted_away_goals: Number(predictions[m.id].away) }));
     if (toSave.length === 0) { showToast("No hay pronósticos completos para guardar.", "error"); return; }
     const { error } = await supabase.from("predictions").upsert(toSave, { onConflict: "player_id,match_id" });
@@ -322,39 +255,33 @@ export default function Home() {
 
   const navItems = [
     { key: "grupos",        label: "Fase de grupos",   desc: "Pronosticá los 72 partidos" },
-    { key: "eliminatorias", label: "Eliminatorias",    desc: "Cruces del torneo" },
+    { key: "eliminatorias", label: "Eliminatorias",    desc: "Dieciseisavos de final" },
     { key: "ranking",       label: "Ranking",          desc: "Tabla de posiciones" },
     { key: "reglas",        label: "Reglas",           desc: "Cómo funciona el prode" },
     { key: "miperfil",      label: "Mi perfil",        desc: "Tu cuenta y campeón" },
   ] as const;
 
-  // ─── MATCH CARD COMPONENT ─────────────────────────────────────────────────
   function MatchCard({ match }: { match: Match }) {
     const bloqueado = partidoBloqueado(match);
     const hasOdds = match.odd_home || match.odd_draw || match.odd_away;
     const minOdd = Math.min(match.odd_home ?? 999, match.odd_draw ?? 999, match.odd_away ?? 999);
+    const elim = esEliminatoria(match.phase);
 
     return (
       <div style={{
         borderRadius: 10, overflow: "hidden",
-        border: `1px solid ${bloqueado ? "#161620" : "#1e1e2a"}`,
-        background: bloqueado ? "rgba(8,8,12,0.5)" : "rgba(14,14,22,0.95)",
+        border: `1px solid ${bloqueado ? "#161620" : elim ? "#1e2a3a" : "#1e1e2a"}`,
+        background: bloqueado ? "rgba(8,8,12,0.5)" : elim ? "rgba(10,14,22,0.95)" : "rgba(14,14,22,0.95)",
       }}>
-        {/* Phase + status bar */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "5px 14px",
-          background: "rgba(0,0,0,0.25)",
-          borderBottom: "1px solid rgba(255,255,255,0.04)",
-        }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#444" }}>{match.phase}</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 14px", background: "rgba(0,0,0,0.25)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {elim && <span style={{ fontSize: 9, fontWeight: 800, color: "#4f8cff", letterSpacing: "0.15em", textTransform: "uppercase" }}>⚡ ELIMINATORIA</span>}
+            {!elim && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#444" }}>{match.phase}</span>}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {elim && <span style={{ fontSize: 9, color: "#4f8cff", fontWeight: 600 }}>10pts exacto · 6pts ganador+dif · 3pts ganador</span>}
             {match.real_home_goals !== null && match.real_away_goals !== null && (
-              <span style={{
-                fontSize: 11, fontWeight: 800, color: "#22c55e",
-                background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)",
-                borderRadius: 4, padding: "1px 8px", letterSpacing: "0.05em",
-              }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 4, padding: "1px 8px" }}>
                 {match.real_home_goals} — {match.real_away_goals}
               </span>
             )}
@@ -362,75 +289,35 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Main row: local | scoreboard | visitante */}
         <div className="match-card-grid">
-          {/* Local */}
           <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-            {FLAG_CODES[match.home_team] && (
-              <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.home_team]}.png`} alt={match.home_team}
-                style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
-            )}
+            {FLAG_CODES[match.home_team] && <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.home_team]}.png`} alt={match.home_team} style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />}
             <div>
               <div style={{ fontSize: 9, color: "#ff7722", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 3 }}>Local</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd" }}>{match.home_team}</div>
             </div>
           </div>
 
-          {/* Scoreboard */}
-          <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            padding: "12px 8px", gap: 5,
-            borderLeft: "1px solid rgba(255,255,255,0.04)",
-            borderRight: "1px solid rgba(255,255,255,0.04)",
-          }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "12px 8px", gap: 5, borderLeft: "1px solid rgba(255,255,255,0.04)", borderRight: "1px solid rgba(255,255,255,0.04)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                disabled={bloqueado} type="number" min="0" placeholder="—"
-                value={predictions[match.id]?.home ?? ""}
+              <input disabled={bloqueado} type="number" min="0" placeholder="—" value={predictions[match.id]?.home ?? ""}
                 onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: e.target.value, away: prev[match.id]?.away ?? "" } }))}
-                style={{
-                  width: 48, height: 44, borderRadius: 6, textAlign: "center",
-                  fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
-                  background: bloqueado ? "#0a0a10" : "#111118",
-                  border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
-                  color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
-                }}
-              />
+                style={{ width: 48, height: 44, borderRadius: 6, textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, background: bloqueado ? "#0a0a10" : "#111118", border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`, color: bloqueado ? "#2a2a38" : "#fff", outline: "none" }} />
               <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "#2a2a38" }}>—</span>
-              <input
-                disabled={bloqueado} type="number" min="0" placeholder="—"
-                value={predictions[match.id]?.away ?? ""}
+              <input disabled={bloqueado} type="number" min="0" placeholder="—" value={predictions[match.id]?.away ?? ""}
                 onChange={(e) => setPredictions((prev) => ({ ...prev, [match.id]: { home: prev[match.id]?.home ?? "", away: e.target.value } }))}
-                style={{
-                  width: 48, height: 44, borderRadius: 6, textAlign: "center",
-                  fontFamily: "'Bebas Neue', sans-serif", fontSize: 26,
-                  background: bloqueado ? "#0a0a10" : "#111118",
-                  border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`,
-                  color: bloqueado ? "#2a2a38" : "#fff", outline: "none",
-                }}
-              />
+                style={{ width: 48, height: 44, borderRadius: 6, textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, background: bloqueado ? "#0a0a10" : "#111118", border: `1px solid ${bloqueado ? "#1a1a24" : "#2a2a38"}`, color: bloqueado ? "#2a2a38" : "#fff", outline: "none" }} />
             </div>
-            <div style={{ fontSize: 10, color: "#3a3a48", fontWeight: 600, textAlign: "center" }}>
-              {formatearFecha(match.match_date)}
-            </div>
+            <div style={{ fontSize: 10, color: "#3a3a48", fontWeight: 600, textAlign: "center" }}>{formatearFecha(match.match_date)}</div>
             {!bloqueado && (
-              <button onClick={() => guardarPronostico(match.id)} style={{
-                padding: "5px 14px", borderRadius: 5,
-                background: "linear-gradient(135deg,#ff7722,#ffcc00)",
-                color: "#000", fontSize: 10, fontWeight: 900, border: "none",
-                cursor: "pointer", letterSpacing: "0.08em", textTransform: "uppercase",
-              }}>
+              <button onClick={() => guardarPronostico(match.id)} style={{ padding: "5px 14px", borderRadius: 5, background: elim ? "linear-gradient(135deg,#2255ee,#4f8cff)" : "linear-gradient(135deg,#ff7722,#ffcc00)", color: "#fff", fontSize: 10, fontWeight: 900, border: "none", cursor: "pointer", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 Guardar
               </button>
             )}
           </div>
 
-          {/* Visitante */}
           <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexDirection: "row-reverse" }}>
-            {FLAG_CODES[match.away_team] && (
-              <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.away_team]}.png`} alt={match.away_team}
-                style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
-            )}
+            {FLAG_CODES[match.away_team] && <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.away_team]}.png`} alt={match.away_team} style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />}
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 9, color: "#4f8cff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 3 }}>Visitante</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd" }}>{match.away_team}</div>
@@ -438,26 +325,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Odds row — OUTSIDE the grid */}
         {hasOdds && (
           <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-            {[
-              { label: "1 Local",    val: match.odd_home },
-              { label: "X Empate",   val: match.odd_draw },
-              { label: "2 Visitante",val: match.odd_away },
-            ].map(({ label, val }, i) => {
+            {[{ label: "1 Local", val: match.odd_home }, { label: "X Empate", val: match.odd_draw }, { label: "2 Visitante", val: match.odd_away }].map(({ label, val }, i) => {
               const isFav = val !== null && val === minOdd;
               return (
-                <div key={label} style={{
-                  flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
-                  padding: "8px 4px", gap: 3,
-                  borderRight: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                  background: isFav ? "rgba(255,119,34,0.07)" : "transparent",
-                }}>
+                <div key={label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "8px 4px", gap: 3, borderRight: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isFav ? "rgba(255,119,34,0.07)" : "transparent" }}>
                   <span style={{ fontSize: 10, color: "#444", fontWeight: 600, letterSpacing: "0.05em" }}>{label}</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: isFav ? "#ff7722" : "#555" }}>
-                    {val?.toFixed(2) ?? "—"}
-                  </span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: isFav ? "#ff7722" : "#555" }}>{val?.toFixed(2) ?? "—"}</span>
                 </div>
               );
             })}
@@ -469,8 +344,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#06060a] text-white" style={{ fontFamily: "'Barlow', sans-serif", position: "relative" }}>
-
-      {/* Fondo estadio */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
         <svg width="100%" height="100%" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" style={{ opacity: 0.05 }}>
           <ellipse cx="600" cy="350" rx="520" ry="280" fill="none" stroke="white" strokeWidth="1.5"/>
@@ -478,35 +351,13 @@ export default function Home() {
           <line x1="600" y1="70" x2="600" y2="630" stroke="white" strokeWidth="1"/>
           <rect x="80" y="220" width="140" height="260" fill="none" stroke="white" strokeWidth="1"/>
           <rect x="980" y="220" width="140" height="260" fill="none" stroke="white" strokeWidth="1"/>
-          <rect x="80" y="280" width="60" height="140" fill="none" stroke="white" strokeWidth="1"/>
-          <rect x="1060" y="280" width="60" height="140" fill="none" stroke="white" strokeWidth="1"/>
-          <path d="M 80 70 Q 100 70 100 90" fill="none" stroke="white" strokeWidth="1"/>
-          <path d="M 1120 70 Q 1100 70 1100 90" fill="none" stroke="white" strokeWidth="1"/>
-          <path d="M 80 630 Q 100 630 100 610" fill="none" stroke="white" strokeWidth="1"/>
-          <path d="M 1120 630 Q 1100 630 1100 610" fill="none" stroke="white" strokeWidth="1"/>
-          <circle cx="80" cy="40" r="7" fill="white"/><circle cx="280" cy="20" r="5" fill="white" opacity="0.7"/>
-          <circle cx="480" cy="12" r="6" fill="white" opacity="0.8"/><circle cx="600" cy="10" r="7" fill="white"/>
-          <circle cx="720" cy="12" r="6" fill="white" opacity="0.8"/><circle cx="920" cy="20" r="5" fill="white" opacity="0.7"/>
-          <circle cx="1120" cy="40" r="7" fill="white"/>
-          <line x1="80" y1="40" x2="250" y2="220" stroke="white" strokeWidth="0.6" opacity="0.4"/>
-          <line x1="1120" y1="40" x2="950" y2="220" stroke="white" strokeWidth="0.6" opacity="0.4"/>
-          <line x1="600" y1="10" x2="480" y2="200" stroke="white" strokeWidth="0.4" opacity="0.3"/>
-          <line x1="600" y1="10" x2="720" y2="200" stroke="white" strokeWidth="0.4" opacity="0.3"/>
         </svg>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 30%, rgba(34,85,238,0.06) 0%, transparent 55%), radial-gradient(ellipse at 20% 70%, rgba(232,53,122,0.04) 0%, transparent 40%)" }} />
       </div>
 
-      {/* Toasts */}
       <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none" }}>
         {toasts.map((t) => (
-          <div key={t.id} style={{
-            padding: "12px 20px", borderRadius: 10, fontWeight: 700, fontSize: 14,
-            backdropFilter: "blur(12px)",
-            border: `1px solid ${t.type === "success" ? "rgba(74,222,128,0.4)" : "rgba(232,53,122,0.4)"}`,
-            background: t.type === "success" ? "rgba(4,20,10,0.95)" : "rgba(20,4,10,0.95)",
-            color: t.type === "success" ? "#4ade80" : "#f87171",
-            animation: "slideIn 0.3s ease",
-          }}>
+          <div key={t.id} style={{ padding: "12px 20px", borderRadius: 10, fontWeight: 700, fontSize: 14, backdropFilter: "blur(12px)", border: `1px solid ${t.type === "success" ? "rgba(74,222,128,0.4)" : "rgba(232,53,122,0.4)"}`, background: t.type === "success" ? "rgba(4,20,10,0.95)" : "rgba(20,4,10,0.95)", color: t.type === "success" ? "#4ade80" : "#f87171", animation: "slideIn 0.3s ease" }}>
             {t.message}
           </div>
         ))}
@@ -521,7 +372,6 @@ export default function Home() {
         }
       `}</style>
 
-      {/* Navbar */}
       <nav style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(6,6,10,0.92)", borderBottom: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-screen-xl mx-auto px-4 md:px-6" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -531,12 +381,7 @@ export default function Home() {
           </div>
           <div className="hidden md:flex items-center gap-1">
             {navItems.map(({ key, label }) => (
-              <button key={key} onClick={() => navegarA(key)} style={{
-                padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer",
-                background: tabActiva === key ? "rgba(255,119,34,0.15)" : "transparent",
-                color: tabActiva === key ? "#ff7722" : "#666",
-                borderBottom: tabActiva === key ? "2px solid #ff7722" : "2px solid transparent",
-              }}>{label}</button>
+              <button key={key} onClick={() => navegarA(key)} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", background: tabActiva === key ? "rgba(255,119,34,0.15)" : "transparent", color: tabActiva === key ? "#ff7722" : "#666", borderBottom: tabActiva === key ? "2px solid #ff7722" : "2px solid transparent" }}>{label}</button>
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -546,8 +391,7 @@ export default function Home() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80" }}>{nombreVisible || "Jugador"}</span>
               </div>
             )}
-            <button onClick={() => setMenuAbierto(!menuAbierto)} className="md:hidden"
-              style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}>
+            <button onClick={() => setMenuAbierto(!menuAbierto)} className="md:hidden" style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}>
               <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(45deg) translate(5px,5px)" : "none" }} />
               <span style={{ width: 18, height: 2, background: menuAbierto ? "transparent" : "#fff", borderRadius: 2, transition: "all 0.2s" }} />
               <span style={{ width: 18, height: 2, background: menuAbierto ? "#ff7722" : "#fff", borderRadius: 2, transition: "all 0.2s", transform: menuAbierto ? "rotate(-45deg) translate(5px,-5px)" : "none" }} />
@@ -557,13 +401,7 @@ export default function Home() {
         {menuAbierto && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "rgba(8,8,14,0.98)", borderBottom: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", padding: "12px 16px 20px", zIndex: 99 }}>
             {navItems.map(({ key, label, desc }) => (
-              <button key={key} onClick={() => navegarA(key)} style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "12px 14px", borderRadius: 10, marginBottom: 6,
-                background: tabActiva === key ? "rgba(255,119,34,0.1)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${tabActiva === key ? "rgba(255,119,34,0.35)" : "rgba(255,255,255,0.06)"}`,
-                cursor: "pointer", textAlign: "left",
-              }}>
+              <button key={key} onClick={() => navegarA(key)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, marginBottom: 6, background: tabActiva === key ? "rgba(255,119,34,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${tabActiva === key ? "rgba(255,119,34,0.35)" : "rgba(255,255,255,0.06)"}`, cursor: "pointer", textAlign: "left" }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: tabActiva === key ? "#ff7722" : "#ccc" }}>{label}</div>
                   <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{desc}</div>
@@ -591,9 +429,7 @@ export default function Home() {
                 <div>
                   <div className="flex items-center gap-3 mb-6 flex-wrap">
                     <div style={{ display: "inline-flex", alignItems: "center", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>
-                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18 }}>
-                        <span style={{ color: "#e8357a" }}>BET</span><span style={{ color: "#2255ee" }}>30</span>
-                      </span>
+                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18 }}><span style={{ color: "#e8357a" }}>BET</span><span style={{ color: "#2255ee" }}>30</span></span>
                     </div>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", border: "1px solid rgba(232,53,122,0.4)", borderRadius: 4, background: "rgba(232,53,122,0.08)" }}>
                       <span className="w-2 h-2 rounded-full bg-[#e8357a] animate-pulse" />
@@ -610,22 +446,18 @@ export default function Home() {
                     <span style={{ display: "block", fontSize: "clamp(72px, 10vw, 104px)", color: "#2255ee" }}>BET30</span>
                   </h1>
                   <p style={{ color: "#888", fontSize: 15, maxWidth: 400, lineHeight: 1.6, marginBottom: 8 }}>Pronosticá cada partido, elegí el campeón y peleá por el podio.</p>
-                  <p style={{ color: "#bbb", fontSize: 14, marginBottom: 32 }}>
-                    Participá con carga mínima de <span style={{ color: "#ff7722", fontWeight: 800 }}>$25.000</span>
-                  </p>
+                  <p style={{ color: "#bbb", fontSize: 14, marginBottom: 32 }}>Participá con carga mínima de <span style={{ color: "#ff7722", fontWeight: 800 }}>$25.000</span></p>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, overflow: "hidden", background: "rgba(255,255,255,0.02)" }}>
                   {[
-                    { label: "Partidos",    value: String(TOTAL_PARTIDOS_GRUPOS), color: "#ff7722" },
-                    { label: "Cerrados",    value: String(partidosBloqueados),    color: "#4f8cff" },
-                    { label: "Pronósticos", value: String(pronosticosCargados),   color: "#ffcc00" },
-                    { label: "Líder",       value: `${scores[0]?.points ?? 0}`,   color: "#e8357a", unit: "pts" },
+                    { label: "Partidos", value: String(TOTAL_PARTIDOS), color: "#ff7722" },
+                    { label: "Cerrados", value: String(partidosBloqueados), color: "#4f8cff" },
+                    { label: "Pronósticos", value: String(pronosticosCargados), color: "#ffcc00" },
+                    { label: "Líder", value: `${scores[0]?.points ?? 0}`, color: "#e8357a", unit: "pts" },
                   ].map(({ label, value, color, unit }, i) => (
                     <div key={label} style={{ padding: "14px 10px", textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
                       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#444", marginBottom: 4 }}>{label}</div>
-                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, lineHeight: 1, color }}>
-                        {value}{unit && <span style={{ fontSize: 14, marginLeft: 3 }}>{unit}</span>}
-                      </div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, lineHeight: 1, color }}>{value}{unit && <span style={{ fontSize: 14, marginLeft: 3 }}>{unit}</span>}</div>
                     </div>
                   ))}
                 </div>
@@ -645,7 +477,7 @@ export default function Home() {
                     </div>
                   ))}
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                    {[["8 pts","Resultado exacto"],["3 pts","Ganador / empate"],["+2 pts","Dif. de goles"],["+15 pts","Campeón correcto"]].map(([pts,desc]) => (
+                    {[["8 pts","Exacto grupos"],["10 pts","Exacto elimin."],["3 pts","Ganador"],["6 pts","Ganador+dif elim."],["+15 pts","Campeón correcto"]].map(([pts,desc]) => (
                       <div key={desc} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 800, color: "#ff7722", whiteSpace: "nowrap" }}>{pts}</span>
                         <span style={{ fontSize: 11, color: "#555", lineHeight: 1.3 }}>{desc}</span>
@@ -659,7 +491,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Contenido */}
       <div id="contenido-principal" style={{ position: "relative", zIndex: 1 }} className="max-w-screen-xl mx-auto px-4 md:px-6 py-6 space-y-5">
 
         {/* Tab bar desktop */}
@@ -668,16 +499,7 @@ export default function Home() {
             {navItems.map(({ key, label }) => {
               const colors: Record<string,string> = { grupos:"#e8357a", eliminatorias:"#4f8cff", ranking:"#ffcc00", reglas:"#22c55e", miperfil:"#a78bfa" };
               const ac = colors[key];
-              return (
-                <button key={key} onClick={() => setTabActiva(key)} style={{
-                  padding: "13px 8px", fontWeight: 800, fontSize: 13, transition: "color 0.2s, background 0.2s",
-                  borderTop: "none", borderLeft: "none", borderRight: "none",
-                  borderBottom: `3px solid ${tabActiva === key ? ac : "transparent"}`,
-                  color: tabActiva === key ? ac : "#555",
-                  background: tabActiva === key ? `${ac}15` : "transparent",
-                  cursor: "pointer",
-                } as React.CSSProperties}>{label}</button>
-              );
+              return <button key={key} onClick={() => setTabActiva(key)} style={{ padding: "13px 8px", fontWeight: 800, fontSize: 13, borderTop: "none", borderLeft: "none", borderRight: "none", borderBottom: `3px solid ${tabActiva === key ? ac : "transparent"}`, color: tabActiva === key ? ac : "#555", background: tabActiva === key ? `${ac}15` : "transparent", cursor: "pointer" } as React.CSSProperties}>{label}</button>;
             })}
           </div>
         </div>
@@ -688,22 +510,13 @@ export default function Home() {
             {navItems.slice(0,3).map(({ key, label }) => {
               const colors: Record<string,string> = { grupos:"#e8357a", eliminatorias:"#4f8cff", ranking:"#ffcc00" };
               const ac = colors[key] ?? "#ff7722";
-              return (
-                <button key={key} onClick={() => setTabActiva(key)} style={{
-                  padding: "12px 6px", fontWeight: 800, fontSize: 12,
-                  borderTop: "none", borderLeft: "none", borderRight: "none",
-                  borderBottom: `3px solid ${tabActiva === key ? ac : "transparent"}`,
-                  color: tabActiva === key ? ac : "#555",
-                  background: tabActiva === key ? `${ac}15` : "transparent",
-                  cursor: "pointer",
-                } as React.CSSProperties}>{label}</button>
-              );
+              return <button key={key} onClick={() => setTabActiva(key)} style={{ padding: "12px 6px", fontWeight: 800, fontSize: 12, borderTop: "none", borderLeft: "none", borderRight: "none", borderBottom: `3px solid ${tabActiva === key ? ac : "transparent"}`, color: tabActiva === key ? ac : "#555", background: tabActiva === key ? `${ac}15` : "transparent", cursor: "pointer" } as React.CSSProperties}>{label}</button>;
             })}
           </div>
         </div>
 
         {/* Próximo partido */}
-        {tabActiva === "grupos" && proximoPartido && (
+        {(tabActiva === "grupos" || tabActiva === "eliminatorias") && proximoPartido && (
           <div style={{ borderRadius: 14, border: "1px solid rgba(255,119,34,0.3)", background: "linear-gradient(135deg,#0f0f16,#0d0d14)", padding: "20px 24px" }}>
             <div className="grid md:grid-cols-[1fr_200px] gap-4 items-center">
               <div>
@@ -726,19 +539,13 @@ export default function Home() {
         {/* Ingresar / Mi perfil */}
         {(tabActiva === "grupos" || tabActiva === "miperfil") && (
           <div style={{ borderRadius: 14, border: "1px solid rgba(124,58,237,0.4)", background: "#0d0d14", padding: "22px 24px" }}>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: "0.05em", marginBottom: 6 }}>
-              {tabActiva === "miperfil" ? "Mi perfil" : "Ingresar al Prode"}
-            </h2>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: "0.05em", marginBottom: 6 }}>{tabActiva === "miperfil" ? "Mi perfil" : "Ingresar al Prode"}</h2>
             {!playerId ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p style={{ fontSize: 13, color: "#555", marginBottom: 4 }}>Ingresá tu usuario BET30 para validar el acceso y un nombre para el ranking.</p>
-                <input style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }}
-                  placeholder="Usuario BET30" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
-                <input style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }}
-                  placeholder="Nombre o apodo para el ranking" value={nombreVisible} onChange={(e) => setNombreVisible(e.target.value)} />
-                <button onClick={registrarse} style={{ width:"100%", padding:"13px", borderRadius:8, background:"linear-gradient(90deg,#ff7722,#ffcc00)", color:"#000", fontWeight:900, fontSize:15, border:"none", cursor:"pointer" }}>
-                  Ingresar
-                </button>
+                <input style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }} placeholder="Usuario BET30" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
+                <input style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }} placeholder="Nombre o apodo para el ranking" value={nombreVisible} onChange={(e) => setNombreVisible(e.target.value)} />
+                <button onClick={registrarse} style={{ width:"100%", padding:"13px", borderRadius:8, background:"linear-gradient(90deg,#ff7722,#ffcc00)", color:"#000", fontWeight:900, fontSize:15, border:"none", cursor:"pointer" }}>Ingresar</button>
               </div>
             ) : (
               <div>
@@ -748,16 +555,9 @@ export default function Home() {
                     <div style={{ fontSize:16, fontWeight:800, color:"#4ade80" }}>{nombreVisible || "Jugador"}</div>
                     <div style={{ fontSize:12, color:"#444" }}>Usuario BET30 · sesión activa</div>
                   </div>
-                  {campeonGuardado && (
-                    <div style={{ marginLeft:"auto", textAlign:"right" }}>
-                      <div style={{ fontSize:10, color:"#666", marginBottom:4 }}>Campeón elegido</div>
-                      <div style={{ fontSize:13, fontWeight:700 }}><BanderaEquipo equipo={campeonGuardado} size="sm" /></div>
-                    </div>
-                  )}
+                  {campeonGuardado && <div style={{ marginLeft:"auto", textAlign:"right" }}><div style={{ fontSize:10, color:"#666", marginBottom:4 }}>Campeón elegido</div><div style={{ fontSize:13, fontWeight:700 }}><BanderaEquipo equipo={campeonGuardado} size="sm" /></div></div>}
                 </div>
-                <button onClick={cerrarSesion} style={{ padding:"10px 24px", borderRadius:8, background:"rgba(232,53,122,0.1)", color:"#e8357a", fontWeight:800, border:"1px solid rgba(232,53,122,0.3)", cursor:"pointer", fontSize:14 }}>
-                  Cerrar sesión
-                </button>
+                <button onClick={cerrarSesion} style={{ padding:"10px 24px", borderRadius:8, background:"rgba(232,53,122,0.1)", color:"#e8357a", fontWeight:800, border:"1px solid rgba(232,53,122,0.3)", cursor:"pointer", fontSize:14 }}>Cerrar sesión</button>
               </div>
             )}
           </div>
@@ -769,35 +569,21 @@ export default function Home() {
             <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.2)", background:"#0d0d14", padding:"22px 24px" }}>
               <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.35em", textTransform:"uppercase", color:"#ffcc00", marginBottom:8 }}>Bonus especial</div>
               <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:26, letterSpacing:"0.03em", marginBottom:8 }}>Elegí al campeón del Mundial</h2>
-              <p style={{ fontSize:13, color:"#666", marginBottom:16 }}>
-                Si acertás el campeón sumás <span style={{ color:"#ffcc00", fontWeight:800 }}>+15 puntos</span> al ranking.
-              </p>
+              <p style={{ fontSize:13, color:"#666", marginBottom:16 }}>Si acertás el campeón sumás <span style={{ color:"#ffcc00", fontWeight:800 }}>+15 puntos</span> al ranking.</p>
               <div className="grid md:grid-cols-[1fr_200px] gap-3">
-                <select value={campeon} onChange={(e) => setCampeon(e.target.value)}
-                  style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }}>
+                <select value={campeon} onChange={(e) => setCampeon(e.target.value)} style={{ width:"100%", padding:"12px 14px", borderRadius:8, background:"#111118", border:"1px solid #222230", color:"#fff", fontSize:14, outline:"none" }}>
                   <option value="">Seleccionar campeón</option>
                   {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <button onClick={guardarCampeon} disabled={!playerId} style={{
-                  padding:"12px 16px", borderRadius:8, fontWeight:900, fontSize:14, border:"none",
-                  cursor: playerId ? "pointer" : "not-allowed",
-                  background: playerId ? "#ffcc00" : "#1a1a22", color: playerId ? "#000" : "#444",
-                }}>
+                <button onClick={guardarCampeon} disabled={!playerId} style={{ padding:"12px 16px", borderRadius:8, fontWeight:900, fontSize:14, border:"none", cursor: playerId ? "pointer" : "not-allowed", background: playerId ? "#ffcc00" : "#1a1a22", color: playerId ? "#000" : "#444" }}>
                   {playerId ? "Guardar campeón" : "Iniciá sesión primero"}
                 </button>
               </div>
-              {campeonGuardado && (
-                <div style={{ marginTop:14, display:"flex", alignItems:"center", gap:8, padding:"10px 14px", borderRadius:8, background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.2)" }}>
-                  <span style={{ fontSize:13, color:"#4ade80", fontWeight:700 }}>✅ Campeón guardado:</span>
-                  <BanderaEquipo equipo={campeonGuardado} size="sm" />
-                </div>
-              )}
+              {campeonGuardado && <div style={{ marginTop:14, display:"flex", alignItems:"center", gap:8, padding:"10px 14px", borderRadius:8, background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.2)" }}><span style={{ fontSize:13, color:"#4ade80", fontWeight:700 }}>✅ Campeón guardado:</span><BanderaEquipo equipo={campeonGuardado} size="sm" /></div>}
             </div>
             <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.18)", background:"#0d0d14", padding:"22px 20px" }}>
               <div style={{ fontSize:13, fontWeight:800, color:"#ffcc00", marginBottom:14 }}>🔥 Más elegidos</div>
-              {championStats.length === 0 ? (
-                <p style={{ fontSize:13, color:"#444" }}>Todavía no hay campeones elegidos.</p>
-              ) : (
+              {championStats.length === 0 ? <p style={{ fontSize:13, color:"#444" }}>Todavía no hay campeones elegidos.</p> : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {championStats.map((stat, i) => (
                     <div key={stat.champion} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px", borderRadius:8, background:"#111118", border:"1px solid #1e1e28" }}>
@@ -811,26 +597,19 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab Grupos */}
+        {/* TAB GRUPOS */}
         {tabActiva === "grupos" && (
           <>
             <div className="grid md:grid-cols-2 gap-4">
               <div style={{ borderRadius:14, border:"1px solid rgba(124,58,237,0.35)", background:"#0d0d14", padding:"20px 22px" }}>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                  <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#ff7722", letterSpacing:"0.04em" }}>Top Prode</h2>
-                  <button onClick={() => setTabActiva("ranking")} style={{ fontSize:12, fontWeight:800, padding:"6px 14px", borderRadius:6, background:"#2255ee", color:"#fff", border:"none", cursor:"pointer" }}>
-                    Ver completo
-                  </button>
+                  <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#ff7722" }}>Top Prode</h2>
+                  <button onClick={() => setTabActiva("ranking")} style={{ fontSize:12, fontWeight:800, padding:"6px 14px", borderRadius:6, background:"#2255ee", color:"#fff", border:"none", cursor:"pointer" }}>Ver completo</button>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {scores.length === 0 && <p style={{ fontSize:13, color:"#444" }}>Todavía no hay puntos cargados.</p>}
                   {scores.slice(0,3).map((score, i) => (
-                    <div key={score.id} style={{
-                      display:"flex", alignItems:"center", justifyContent:"space-between",
-                      padding:"12px 14px", borderRadius:10, border:"1px solid",
-                      borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":"rgba(249,115,22,0.3)",
-                      background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":"rgba(249,115,22,0.04)",
-                    }}>
+                    <div key={score.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", borderRadius:10, border:"1px solid", borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":"rgba(249,115,22,0.3)", background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":"rgba(249,115,22,0.04)" }}>
                       <span style={{ fontWeight:800, fontSize:15, display:"flex", alignItems:"center", gap:10 }}>
                         <span style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:i===0?"#ffcc00":i===1?"#aaa":"#cd7c3a", minWidth:28 }}>{medallaRanking(i)}</span>
                         {score.players?.full_name ?? "Sin nombre"}
@@ -841,7 +620,7 @@ export default function Home() {
                 </div>
               </div>
               <div style={{ borderRadius:14, border:"1px solid rgba(232,53,122,0.35)", background:"#0d0d14", padding:"20px 22px" }}>
-                <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#e8357a", letterSpacing:"0.04em", marginBottom:16 }}>Premios</h2>
+                <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:"#e8357a", marginBottom:16 }}>Premios</h2>
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                   {[["1° Puesto","$700.000"],["2° Puesto","$200.000"],["3° Puesto","$100.000"]].map(([pos,amt]) => (
                     <div key={pos} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:15 }}>
@@ -851,58 +630,39 @@ export default function Home() {
                   ))}
                 </div>
                 <div style={{ marginTop:18, paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.06)", fontSize:13 }}>
-                  <div style={{ fontWeight:800, color:"#ff7722", marginBottom:8 }}>Sistema de puntos</div>
-                  {["Resultado exacto: 8 pts","Ganador/empate correcto: 3 pts","Diferencia de gol correcta: +2 pts","Campeón correcto: +15 pts"].map((l) => (
-                    <div key={l} style={{ color:"#555", marginBottom:3 }}>{l}</div>
-                  ))}
+                  <div style={{ fontWeight:800, color:"#ff7722", marginBottom:8 }}>Sistema de puntos · Fase de grupos</div>
+                  {["Resultado exacto: 8 pts","Ganador correcto: 3 pts","Diferencia exacta: +2 pts","Campeón correcto: +15 pts"].map((l) => <div key={l} style={{ color:"#555", marginBottom:3 }}>{l}</div>)}
                 </div>
               </div>
             </div>
 
-            {/* Fixture */}
             <div style={{ borderRadius:14, border:"1px solid #1a1a24", background:"rgba(10,10,16,0.85)", padding:"20px 22px", backdropFilter:"blur(8px)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18, flexWrap:"wrap", gap:10 }}>
-                <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:24, letterSpacing:"0.04em" }}>Fixture y pronósticos</h2>
-                <button onClick={guardarTodosLosPronosticos} style={{ padding:"11px 22px", borderRadius:8, background:"linear-gradient(90deg,#e8357a,#2255ee)", color:"#fff", fontWeight:900, fontSize:14, border:"none", cursor:"pointer" }}>
-                  Guardar todos
-                </button>
+                <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:24 }}>Fixture y pronósticos</h2>
+                <button onClick={guardarTodosLosPronosticos} style={{ padding:"11px 22px", borderRadius:8, background:"linear-gradient(90deg,#e8357a,#2255ee)", color:"#fff", fontWeight:900, fontSize:14, border:"none", cursor:"pointer" }}>Guardar todos</button>
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {partidosPorGrupo.map(([grupo, partidos]) => {
                   const abierto = gruposAbiertos[grupo] ?? false;
                   return (
                     <div key={grupo} style={{ borderRadius:12, overflow:"hidden", border:"1px solid #1a1a24" }}>
-                      <button onClick={() => toggleGrupo(grupo)} style={{
-                        width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
-                        padding:"14px 18px", cursor:"pointer", border:"none",
-                        background: abierto ? "linear-gradient(90deg, rgba(255,119,34,0.08), rgba(255,119,34,0.02), transparent)" : "rgba(255,255,255,0.015)",
-                        borderLeft: abierto ? "3px solid #ff7722" : "3px solid rgba(255,255,255,0.06)",
-                      }}>
+                      <button onClick={() => toggleGrupo(grupo)} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", cursor:"pointer", border:"none", background: abierto ? "linear-gradient(90deg, rgba(255,119,34,0.08), rgba(255,119,34,0.02), transparent)" : "rgba(255,255,255,0.015)", borderLeft: abierto ? "3px solid #ff7722" : "3px solid rgba(255,255,255,0.06)" }}>
                         <div>
-                          <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:17, letterSpacing:"0.06em", color: abierto ? "#ff7722" : "#555" }}>
-                            {abierto ? "▼" : "▶"} {grupo}
-                          </div>
+                          <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:17, color: abierto ? "#ff7722" : "#555" }}>{abierto ? "▼" : "▶"} {grupo}</div>
                           <div style={{ fontSize:11, color:"#444", marginTop:2, fontWeight:600 }}>{partidos.length} partidos</div>
                         </div>
-                        <span style={{ fontSize:11, fontWeight:800, color:"#ffcc00", letterSpacing:"0.1em", textTransform:"uppercase" }}>
-                          {abierto ? "Ocultar" : "Ver partidos"}
-                        </span>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#ffcc00", letterSpacing:"0.1em", textTransform:"uppercase" }}>{abierto ? "Ocultar" : "Ver partidos"}</span>
                       </button>
-
                       {abierto && (
                         <div style={{ padding:"10px 12px", display:"flex", flexDirection:"column", gap:6, background:"rgba(0,0,0,0.2)" }}>
                           {partidos.map((match) => <MatchCard key={match.id} match={match} />)}
-
-                          {/* Tabla de posiciones */}
                           {(() => {
                             const tabla = standings.filter(s => s.group_name === grupo).sort((a,b) => b.points - a.points || (b.goals_for-b.goals_against)-(a.goals_for-a.goals_against));
                             if (tabla.length === 0) return null;
                             return (
                               <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", border:"1px solid rgba(34,197,94,0.2)" }}>
                                 <div style={{ padding:"10px 16px", background:"linear-gradient(90deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02), transparent)", borderLeft:"3px solid #22c55e", display:"flex", alignItems:"center", gap:8 }}>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-                                  </svg>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                                   <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.2em", textTransform:"uppercase", color:"#22c55e" }}>Tabla de posiciones</span>
                                 </div>
                                 <div style={{ background:"rgba(0,0,0,0.3)", overflowX:"auto" }}>
@@ -910,9 +670,7 @@ export default function Home() {
                                     <thead>
                                       <tr style={{ borderBottom:"1px solid #1a1a24" }}>
                                         <th style={{ textAlign:"left", padding:"8px 14px", color:"#555", fontWeight:700, fontSize:10 }}>Equipo</th>
-                                        {["PJ","G","E","P","GF","GC","DG"].map(h => (
-                                          <th key={h} style={{ textAlign:"center", padding:"8px 8px", color:"#555", fontWeight:700, fontSize:10 }}>{h}</th>
-                                        ))}
+                                        {["PJ","G","E","P","GF","GC","DG"].map(h => <th key={h} style={{ textAlign:"center", padding:"8px 8px", color:"#555", fontWeight:700, fontSize:10 }}>{h}</th>)}
                                         <th style={{ textAlign:"center", padding:"8px 10px", color:"#ffcc00", fontWeight:800, fontSize:10 }}>Pts</th>
                                       </tr>
                                     </thead>
@@ -926,9 +684,7 @@ export default function Home() {
                                               <span style={{ fontWeight:700, color:"#ccc", whiteSpace:"nowrap" }}>{s.team}</span>
                                             </div>
                                           </td>
-                                          {[s.played,s.won,s.drawn,s.lost,s.goals_for,s.goals_against,s.goals_for-s.goals_against].map((v,vi) => (
-                                            <td key={vi} style={{ textAlign:"center", padding:"9px 8px", color:"#777" }}>{v}</td>
-                                          ))}
+                                          {[s.played,s.won,s.drawn,s.lost,s.goals_for,s.goals_against,s.goals_for-s.goals_against].map((v,vi) => <td key={vi} style={{ textAlign:"center", padding:"9px 8px", color:"#777" }}>{v}</td>)}
                                           <td style={{ textAlign:"center", padding:"9px 10px", fontFamily:"'Bebas Neue', sans-serif", fontSize:16, color:"#ffcc00" }}>{s.points}</td>
                                         </tr>
                                       ))}
@@ -948,39 +704,34 @@ export default function Home() {
           </>
         )}
 
-        {/* Tab Eliminatorias */}
+        {/* TAB ELIMINATORIAS */}
         {tabActiva === "eliminatorias" && (
           <div style={{ borderRadius:14, border:"1px solid rgba(34,85,238,0.35)", background:"#0d0d14", padding:"24px" }}>
-            <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.4em", textTransform:"uppercase", color:"#4f8cff", marginBottom:10 }}>Eliminatorias</div>
-            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:8 }}>Cruces eliminatorios</h2>
-            <p style={{ fontSize:14, color:"#555", marginBottom:24 }}>Acá van a aparecer los cruces de eliminación directa cuando termine la fase de grupos.</p>
-            <div className="grid gap-4 md:grid-cols-3">
-              {["Dieciseisavos","Octavos","Cuartos","Semifinales","Tercer puesto","Final"].map((fase) => (
-                <div key={fase} style={{ borderRadius:12, border:"1px solid #1a1a24", background:"#111118", padding:"18px 20px" }}>
-                  <div style={{ fontWeight:800, fontSize:16, marginBottom:8 }}>{fase}</div>
-                  <div style={{ fontSize:13, color:"#444", marginBottom:14 }}>Próximamente disponible.</div>
-                  <button style={{ width:"100%", padding:"10px", borderRadius:8, border:"1px solid rgba(34,85,238,0.3)", background:"rgba(34,85,238,0.05)", color:"#4f8cff", fontWeight:800, fontSize:13, cursor:"default" }}>
-                    Bloqueado
-                  </button>
-                </div>
-              ))}
+            <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.4em", textTransform:"uppercase", color:"#4f8cff", marginBottom:6 }}>⚡ Eliminatorias</div>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:4 }}>Dieciseisavos de Final</h2>
+            <div style={{ display:"flex", gap:16, marginBottom:20, fontSize:12, color:"#555", flexWrap:"wrap" }}>
+              <span><span style={{ color:"#4f8cff", fontWeight:800 }}>10 pts</span> resultado exacto</span>
+              <span><span style={{ color:"#4f8cff", fontWeight:800 }}>6 pts</span> ganador + dif. exacta</span>
+              <span><span style={{ color:"#4f8cff", fontWeight:800 }}>3 pts</span> solo ganador</span>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:10 }}>
+              <span style={{ fontSize:13, color:"#555" }}>{matchesEliminatorias.length} partidos</span>
+              <button onClick={guardarTodosLosPronosticos} style={{ padding:"10px 20px", borderRadius:8, background:"linear-gradient(90deg,#2255ee,#4f8cff)", color:"#fff", fontWeight:900, fontSize:13, border:"none", cursor:"pointer" }}>Guardar todos</button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {matchesEliminatorias.map((match) => <MatchCard key={match.id} match={match} />)}
             </div>
           </div>
         )}
 
-        {/* Tab Ranking */}
+        {/* TAB RANKING */}
         {tabActiva === "ranking" && (
           <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.35)", background:"#0d0d14", padding:"24px" }}>
-            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, color:"#ffcc00", marginBottom:20, letterSpacing:"0.04em" }}>Ranking completo</h2>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, color:"#ffcc00", marginBottom:20 }}>Ranking completo</h2>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {scores.length === 0 && <p style={{ fontSize:13, color:"#444" }}>Todavía no hay puntos cargados.</p>}
               {scores.map((score, i) => (
-                <div key={score.id} style={{
-                  display:"flex", alignItems:"center", justifyContent:"space-between",
-                  padding:"14px 18px", borderRadius:10, border:"1px solid",
-                  borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":i===2?"rgba(249,115,22,0.3)":"#1a1a24",
-                  background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":i===2?"rgba(249,115,22,0.04)":"#111118",
-                }}>
+                <div key={score.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderRadius:10, border:"1px solid", borderColor: i===0?"rgba(255,204,0,0.4)":i===1?"rgba(200,200,200,0.2)":i===2?"rgba(249,115,22,0.3)":"#1a1a24", background: i===0?"rgba(255,204,0,0.05)":i===1?"rgba(255,255,255,0.02)":i===2?"rgba(249,115,22,0.04)":"#111118" }}>
                   <span style={{ fontWeight:800, fontSize:15, display:"flex", alignItems:"center", gap:10 }}>
                     <span style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:22, color:i===0?"#ffcc00":i===1?"#aaa":i===2?"#cd7c3a":"#333", minWidth:28 }}>{medallaRanking(i)}</span>
                     {score.players?.full_name ?? "Sin nombre"}
@@ -992,30 +743,23 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab Reglas */}
+        {/* TAB REGLAS */}
         {tabActiva === "reglas" && (
           <div style={{ borderRadius:14, border:"1px solid rgba(34,197,94,0.3)", background:"#0d0d14", padding:"28px" }}>
             <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.4em", textTransform:"uppercase", color:"#22c55e", marginBottom:10 }}>Información</div>
-            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:24, letterSpacing:"0.04em" }}>Reglas del Prode</h2>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:24 }}>Reglas del Prode</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {[
-                { titulo:"¿Cómo participar?", texto:"Ingresá con tu usuario BET30 con una carga mínima de $25.000. Una vez validado, podés empezar a cargar tus pronósticos.", color:"#ff7722",
-                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff7722" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
-                { titulo:"Sistema de puntos", texto:"Resultado exacto: 8 pts. Ganador o empate correcto: 3 pts. Diferencia de goles correcta: +2 pts adicionales. Campeón correcto: +15 pts bonus.", color:"#ffcc00",
-                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> },
-                { titulo:"Cierre de pronósticos", texto:"Cada partido se cierra automáticamente al inicio del mismo. No se pueden modificar los pronósticos una vez cerrado el partido.", color:"#e8357a",
-                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8357a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> },
-                { titulo:"Campeón del torneo", texto:"Podés elegir el campeón del Mundial en cualquier momento antes de que inicie el torneo. Si acertás sumás +15 puntos al ranking final.", color:"#4f8cff",
-                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f8cff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> },
-                { titulo:"Premios", texto:"1° Puesto: $700.000 · 2° Puesto: $200.000 · 3° Puesto: $100.000. Los premios se acreditan al finalizar el torneo.", color:"#22c55e",
-                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-                { titulo:"Desempate", texto:"En caso de empate en puntos, se desempata por mayor cantidad de resultados exactos, luego por ganador/empate correctos.", color:"#a78bfa",
-                  svg:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
-              ].map(({ titulo, texto, color, svg }) => (
+                { titulo:"¿Cómo participar?", texto:"Ingresá con tu usuario BET30 con una carga mínima de $25.000. Una vez validado, podés empezar a cargar tus pronósticos.", color:"#ff7722" },
+                { titulo:"Puntos · Fase de grupos", texto:"Resultado exacto: 8 pts. Ganador correcto: 3 pts. Diferencia de goles exacta: +2 pts adicionales. Campeón correcto: +15 pts bonus.", color:"#ffcc00" },
+                { titulo:"Puntos · Eliminatorias ⚡", texto:"Resultado exacto: 10 pts. Ganador correcto: 3 pts. Diferencia de goles exacta: +3 pts adicionales (total 6 pts sin exacto). Campeón correcto: +15 pts bonus.", color:"#4f8cff" },
+                { titulo:"Cierre de pronósticos", texto:"Cada partido se cierra automáticamente al inicio del mismo. No se pueden modificar los pronósticos una vez cerrado el partido.", color:"#e8357a" },
+                { titulo:"Premios", texto:"1° Puesto: $700.000 · 2° Puesto: $200.000 · 3° Puesto: $100.000. Los premios se acreditan al finalizar el torneo.", color:"#22c55e" },
+                { titulo:"Desempate", texto:"En caso de empate en puntos, se desempata por mayor cantidad de resultados exactos, luego por ganador/empate correctos.", color:"#a78bfa" },
+              ].map(({ titulo, texto, color }) => (
                 <div key={titulo} style={{ padding:"20px 22px", borderRadius:12, background:"linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))", border:"1px solid #1e1e2a", position:"relative", overflow:"hidden" }}>
                   <div style={{ position:"absolute", top:0, left:0, width:3, height:"100%", background:color }} />
-                  <div style={{ marginBottom:12, marginLeft:4 }}>{svg}</div>
-                  <div style={{ fontWeight:800, fontSize:15, marginBottom:6, color:"#e0e0e0", marginLeft:4 }}>{titulo}</div>
+                  <div style={{ fontWeight:800, fontSize:15, marginBottom:8, color:"#e0e0e0", marginLeft:4 }}>{titulo}</div>
                   <div style={{ fontSize:13, color:"#666", lineHeight:1.7, marginLeft:4 }}>{texto}</div>
                 </div>
               ))}
@@ -1023,7 +767,21 @@ export default function Home() {
           </div>
         )}
 
+        {tabActiva === "miperfil" && (
+          <div style={{ borderRadius:14, border:"1px solid rgba(124,58,237,0.35)", background:"#0d0d14", padding:"24px" }}>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:26, marginBottom:16 }}>Mi perfil</h2>
+            {!playerId ? <p style={{ color:"#555" }}>Iniciá sesión para ver tu perfil.</p> : (
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                <div style={{ padding:16, borderRadius:10, background:"rgba(74,222,128,0.05)", border:"1px solid rgba(74,222,128,0.2)" }}>
+                  <div style={{ fontSize:16, fontWeight:800, color:"#4ade80" }}>{nombreVisible}</div>
+                  <div style={{ fontSize:12, color:"#444", marginTop:4 }}>Pronósticos cargados: {pronosticosCargados}</div>
+                </div>
+                <button onClick={cerrarSesion} style={{ width:"fit-content", padding:"10px 24px", borderRadius:8, background:"rgba(232,53,122,0.1)", color:"#e8357a", fontWeight:800, border:"1px solid rgba(232,53,122,0.3)", cursor:"pointer" }}>Cerrar sesión</button>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </main>
   );
-}
