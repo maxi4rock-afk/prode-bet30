@@ -94,6 +94,23 @@ export default function Home() {
   }
 
   useEffect(() => {
+    // Forzar actualización de caché
+    const VERSION = "2.2";
+    const savedVersion = localStorage.getItem("app_version");
+    if (savedVersion !== VERSION) {
+      const savedId = localStorage.getItem("playerId");
+      const savedU = localStorage.getItem("usuario");
+      const savedN = localStorage.getItem("nombreVisible");
+      localStorage.clear();
+      localStorage.setItem("app_version", VERSION);
+      // Preservar sesión del usuario
+      if (savedId) localStorage.setItem("playerId", savedId);
+      if (savedU) localStorage.setItem("usuario", savedU);
+      if (savedN) localStorage.setItem("nombreVisible", savedN);
+      window.location.reload();
+      return;
+    }
+
     cargarPartidos(); cargarRanking(); cargarCampeonesElegidos(); cargarStandings();
     const savedPlayerId = localStorage.getItem("playerId");
     const savedUsuario = localStorage.getItem("usuario");
