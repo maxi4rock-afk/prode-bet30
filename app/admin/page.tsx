@@ -219,36 +219,44 @@ export default function AdminPage() {
 
   async function calcularRanking() {
     setCalculando(true); setMensaje("Calculando ranking...");
-
-    // Usar función SQL para cálculo correcto
-    const { error } = await supabase.rpc("calcular_ranking_completo");
-
-    if (error) {
-      setMensaje("Error al calcular: " + error.message);
-      setCalculando(false);
-      return;
-    }
-
-    // Sumar bonus campeón
+    const { data: matchesData, error: mErr } = await supabase.from("matches").select("*").not("real_home_goals", "is", null).not("real_away_goals", "is", null);
+    if (mErr) { setMensaje("Error al leer resultados."); setCalculando(false); return; }
+    const { data: predsData, error: pErr } = await supabase.from("predictions").select("player_id, match_id, predicted_home_goals, predicted_away_goals");
+    if (pErr) { setMensaje("Error al leer pronósticos."); setCalculando(false); return; }
     const { data: config } = await supabase.from("tournament_config").select("champion").eq("id", 1).single();
     const campeonOficial = config?.champion;
+    const puntos: Record<string, number> = {};
+    (predsData || []).forEach((pred) => {
+      const match = (matchesData || []).find((m) => m.id === pred.match_id);
+      if (!match) return;
+      const rH = match.real_home_goals as number;
+      const rA = match.real_away_goals as number;
+      const pH = pred.predicted_home_goals;
+      const pA = pred.predicted_away_goals;
+      const elim = !match.phase.startsWith("Grupo");
+      let pts = 0;
+      if (pH === rH && pA === rA) {
+        pts = elim ? 10 : 8;
+      } else {
+        const pRes = pH > pA ? 1 : pH < pA ? -1 : 0;
+        const rRes = rH > rA ? 1 : rH < rA ? -1 : 0;
+        const pDif = pH - pA;
+        const rDif = rH - rA;
+        if (pRes === rRes && pDif === rDif) {
+          pts = elim ? 6 : 5;
+        } else if (pRes === rRes) {
+          pts = 3;
+        }
+      }
+      puntos[pred.player_id] = (puntos[pred.player_id] || 0) + pts;
+    });
     if (campeonOficial) {
       const { data: champPreds } = await supabase.from("champion_predictions").select("player_id, champion");
-      for (const pred of (champPreds || [])) {
-        if (pred.champion === campeonOficial) {
-          await supabase.from("score").update({ points: supabase.rpc("get_points", { p_player_id: pred.player_id }) }).eq("player_id", pred.player_id);
-        }
-      }
-      // Sumar 15 pts a quienes acertaron campeón
-      const { data: acertaron } = await supabase.from("champion_predictions").select("player_id").eq("champion", campeonOficial);
-      for (const p of (acertaron || [])) {
-        const { data: scoreRow } = await supabase.from("score").select("points").eq("player_id", p.player_id).single();
-        if (scoreRow) {
-          await supabase.from("score").update({ points: scoreRow.points + 15, updated_at: new Date().toISOString() }).eq("player_id", p.player_id);
-        }
-      }
+      (champPreds || []).forEach((pred) => { if (pred.champion === campeonOficial) puntos[pred.player_id] = (puntos[pred.player_id] || 0) + 15; });
     }
-
+    const rows = Object.entries(puntos).map(([player_id, points]) => ({ player_id, points, updated_at: new Date().toISOString() }));
+    await supabase.from("score").delete().neq("id", -1);
+    if (rows.length > 0) await supabase.from("score").insert(rows);
     await cargarRanking();
     setMensaje("🏆 Ranking calculado correctamente.");
     setCalculando(false);
