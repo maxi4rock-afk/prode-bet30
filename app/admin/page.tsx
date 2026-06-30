@@ -71,8 +71,6 @@ export default function AdminPage() {
   const [reseteandoCampeones, setReseteandoCampeones] = useState(false);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [standingsTab, setStandingsTab] = useState("Grupo A");
-
-  // Filtro de partidos
   const [busqueda, setBusqueda] = useState("");
   const [filtroFase, setFiltroFase] = useState("Todos");
 
@@ -137,7 +135,7 @@ export default function AdminPage() {
   }
 
   async function recalcularStandings(groupName: string) {
-    if (!groupName.startsWith("Grupo")) return; // Solo grupos, no eliminatorias
+    if (!groupName.startsWith("Grupo")) return;
     const { data: partidos } = await supabase.from("matches").select("home_team, away_team, real_home_goals, real_away_goals").eq("phase", groupName).not("real_home_goals", "is", null).not("real_away_goals", "is", null);
     if (!partidos || partidos.length === 0) { await supabase.from("standings").delete().eq("group_name", groupName); await cargarStandings(); return; }
     const stats: Record<string, { played: number; won: number; drawn: number; lost: number; goals_for: number; goals_against: number; points: number }> = {};
@@ -219,46 +217,41 @@ export default function AdminPage() {
     setMensaje("🏆 Campeón real guardado."); await cargarCampeonesElegidos();
   }
 
-  function calcularPuntos(pred: Prediction, match: Match) {
-    if (match.real_home_goals === null || match.real_away_goals === null) return 0;
-    const rH = match.real_home_goals, rA = match.real_away_goals;
-    const pH = pred.predicted_home_goals, pA = pred.predicted_away_goals;
-    const elim = esEliminatoria(match.phase);
-
-    // Resultado exacto
-    if (pH === rH && pA === rA) return elim ? 10 : 8;
-
-    const rRes = rH > rA ? "home" : rH < rA ? "away" : "draw";
-    const pRes = pH > pA ? "home" : pH < pA ? "away" : "draw";
-    let pts = 0;
-    if (rRes === pRes) pts += 3;                      // ganador correcto: 3 pts siempre
-    if ((rH - rA) === (pH - pA)) pts += elim ? 3 : 2; // dif. exacta: +3 elim / +2 grupos
-    return pts;
-  }
-
   async function calcularRanking() {
     setCalculando(true); setMensaje("Calculando ranking...");
-    const { data: matchesData, error: mErr } = await supabase.from("matches").select("*").not("real_home_goals", "is", null).not("real_away_goals", "is", null);
-    if (mErr) { setMensaje("Error al leer resultados."); setCalculando(false); return; }
-    const { data: predsData, error: pErr } = await supabase.from("predictions").select("player_id, match_id, predicted_home_goals, predicted_away_goals");
-    if (pErr) { setMensaje("Error al leer pronósticos."); setCalculando(false); return; }
+
+    // Usar función SQL para cálculo correcto
+    const { error } = await supabase.rpc("calcular_ranking_completo");
+
+    if (error) {
+      setMensaje("Error al calcular: " + error.message);
+      setCalculando(false);
+      return;
+    }
+
+    // Sumar bonus campeón
     const { data: config } = await supabase.from("tournament_config").select("champion").eq("id", 1).single();
     const campeonOficial = config?.champion;
-    const puntos: Record<string, number> = {};
-    (predsData || []).forEach((pred) => {
-      const match = (matchesData || []).find((m) => m.id === pred.match_id);
-      if (!match) return;
-      puntos[pred.player_id] = (puntos[pred.player_id] || 0) + calcularPuntos(pred as Prediction, match as Match);
-    });
     if (campeonOficial) {
       const { data: champPreds } = await supabase.from("champion_predictions").select("player_id, champion");
-      (champPreds || []).forEach((pred) => { if (pred.champion === campeonOficial) puntos[pred.player_id] = (puntos[pred.player_id] || 0) + 15; });
+      for (const pred of (champPreds || [])) {
+        if (pred.champion === campeonOficial) {
+          await supabase.from("score").update({ points: supabase.rpc("get_points", { p_player_id: pred.player_id }) }).eq("player_id", pred.player_id);
+        }
+      }
+      // Sumar 15 pts a quienes acertaron campeón
+      const { data: acertaron } = await supabase.from("champion_predictions").select("player_id").eq("champion", campeonOficial);
+      for (const p of (acertaron || [])) {
+        const { data: scoreRow } = await supabase.from("score").select("points").eq("player_id", p.player_id).single();
+        if (scoreRow) {
+          await supabase.from("score").update({ points: scoreRow.points + 15, updated_at: new Date().toISOString() }).eq("player_id", p.player_id);
+        }
+      }
     }
-    const rows = Object.entries(puntos).map(([player_id, points]) => ({ player_id, points, updated_at: new Date().toISOString() }));
-    await supabase.from("score").delete().neq("id", -1);
-    if (rows.length > 0) await supabase.from("score").insert(rows);
+
     await cargarRanking();
-    setMensaje("🏆 Ranking calculado correctamente."); setCalculando(false);
+    setMensaje("🏆 Ranking calculado correctamente.");
+    setCalculando(false);
   }
 
   async function limpiarGrupo(groupName: string) {
@@ -274,16 +267,10 @@ export default function AdminPage() {
 
   const standingsDelGrupo = standings.filter(s => s.group_name === standingsTab).sort((a, b) => b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against));
   const gruposConDatos = [...new Set(standings.map(s => s.group_name))].sort();
-
-  // Fases disponibles para filtro
   const fasesDisponibles = ["Todos", ...Array.from(new Set(matches.map(m => m.phase))).sort()];
-
-  // Partidos filtrados
   const matchesFiltrados = matches.filter(m => {
     const matchFase = filtroFase === "Todos" || m.phase === filtroFase;
-    const matchBusqueda = busqueda === "" || 
-      m.home_team.toLowerCase().includes(busqueda.toLowerCase()) || 
-      m.away_team.toLowerCase().includes(busqueda.toLowerCase());
+    const matchBusqueda = busqueda === "" || m.home_team.toLowerCase().includes(busqueda.toLowerCase()) || m.away_team.toLowerCase().includes(busqueda.toLowerCase());
     return matchFase && matchBusqueda;
   });
 
@@ -292,8 +279,6 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-black text-white p-6">
       <section className="mx-auto max-w-7xl">
-
-        {/* HEADER */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-bold uppercase text-yellow-400">Administración</p>
@@ -312,7 +297,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* CAMPEÓN */}
         <div className="mb-6 rounded bg-zinc-900 p-5 border border-yellow-500">
           <h2 className="text-2xl font-bold text-yellow-400 mb-3">🏆 Campeón Mundial</h2>
           <div className="flex gap-3 flex-wrap">
@@ -324,7 +308,6 @@ export default function AdminPage() {
           {campeonReal && <p className="mt-3 text-green-400 font-bold">Campeón configurado: {campeonReal}</p>}
         </div>
 
-        {/* CAMPEONES ELEGIDOS */}
         <div className="mb-6 rounded bg-zinc-900 p-5 border border-purple-500">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -347,7 +330,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* STANDINGS */}
         <div className="mb-6 rounded bg-zinc-900 p-5 border border-green-500">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
@@ -397,25 +379,13 @@ export default function AdminPage() {
 
         {mensaje && <p className="mb-4 rounded bg-zinc-900 p-3 font-bold text-green-400">{mensaje}</p>}
 
-        {/* RESULTADOS + RANKING */}
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <section className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-2xl font-bold">Resultados reales</h2>
               <div className="flex gap-2 flex-wrap">
-                {/* Búsqueda por equipo */}
-                <input
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="🔍 Buscar equipo..."
-                  className="rounded bg-zinc-800 px-3 py-2 text-sm text-white border border-zinc-700 w-44"
-                />
-                {/* Filtro por fase */}
-                <select
-                  value={filtroFase}
-                  onChange={(e) => setFiltroFase(e.target.value)}
-                  className="rounded bg-zinc-800 px-3 py-2 text-sm text-white border border-zinc-700"
-                >
+                <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="🔍 Buscar equipo..." className="rounded bg-zinc-800 px-3 py-2 text-sm text-white border border-zinc-700 w-44" />
+                <select value={filtroFase} onChange={(e) => setFiltroFase(e.target.value)} className="rounded bg-zinc-800 px-3 py-2 text-sm text-white border border-zinc-700">
                   {fasesDisponibles.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
@@ -429,9 +399,7 @@ export default function AdminPage() {
                 <div key={match.id} className={`rounded p-4 space-y-3 border ${elim ? "bg-zinc-900/80 border-blue-900" : "bg-zinc-900 border-zinc-800"}`}>
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div>
-                      <p className={`text-xs font-bold uppercase ${elim ? "text-blue-400" : "text-gray-400"}`}>
-                        {elim ? "⚡ ELIMINATORIA · " : ""}{match.phase}
-                      </p>
+                      <p className={`text-xs font-bold uppercase ${elim ? "text-blue-400" : "text-gray-400"}`}>{elim ? "⚡ ELIMINATORIA · " : ""}{match.phase}</p>
                       <p className="font-bold text-lg">{match.home_team} vs {match.away_team}</p>
                       <p className="mt-1 text-sm font-bold text-yellow-400">🕒 {formatearFechaArgentina(match.match_date)}</p>
                       <p className={`mt-1 text-sm font-bold ${bloqueado ? "text-red-400" : "text-green-400"}`}>
@@ -444,12 +412,9 @@ export default function AdminPage() {
                         className={`rounded px-3 py-2 text-sm font-bold ${bloqueado ? "bg-green-600 text-white" : "bg-red-600 text-white"}`}>
                         {bloqueado ? "Desbloquear" : "Bloquear"}
                       </button>
-                      <button onClick={() => resetearResultado(match.id)} disabled={guardandoId === match.id || calculando}
-                        className="rounded bg-zinc-700 px-3 py-2 text-sm font-bold text-white">Reset</button>
+                      <button onClick={() => resetearResultado(match.id)} disabled={guardandoId === match.id || calculando} className="rounded bg-zinc-700 px-3 py-2 text-sm font-bold text-white">Reset</button>
                     </div>
                   </div>
-
-                  {/* Resultado real */}
                   <div className="flex items-center gap-3 flex-wrap">
                     <p className="text-xs font-bold uppercase text-gray-500 w-full">Resultado real</p>
                     <input className="rounded bg-white p-2 text-center text-black w-24" type="number" min="0" placeholder={match.home_team}
@@ -464,23 +429,15 @@ export default function AdminPage() {
                       {guardandoId === match.id ? "..." : "Guardar resultado"}
                     </button>
                   </div>
-
-                  {/* Sistema de puntos mini */}
                   <div className="flex gap-3 text-xs text-gray-600">
                     {elim
                       ? <><span className="text-blue-400 font-bold">10pts</span> exacto · <span className="text-blue-400 font-bold">6pts</span> ganador+dif · <span className="text-blue-400 font-bold">3pts</span> ganador</>
                       : <><span className="text-gray-500">8pts</span> exacto · <span className="text-gray-500">5pts</span> ganador+dif · <span className="text-gray-500">3pts</span> ganador</>
                     }
                   </div>
-
-                  {/* Cuotas */}
                   <div className="flex items-center gap-3 flex-wrap border-t border-zinc-700 pt-3">
                     <p className="text-xs font-bold uppercase text-gray-500 w-full">Cuotas (1 · X · 2)</p>
-                    {[
-                      { label: "Local", field: "odd_home" as const },
-                      { label: "Empate", field: "odd_draw" as const },
-                      { label: "Visitante", field: "odd_away" as const },
-                    ].map(({ label, field }) => (
+                    {[{ label: "Local", field: "odd_home" as const }, { label: "Empate", field: "odd_draw" as const }, { label: "Visitante", field: "odd_away" as const }].map(({ label, field }) => (
                       <div key={field} className="flex flex-col items-center gap-1">
                         <span className="text-xs text-gray-500">{label}</span>
                         <input className="rounded bg-white p-2 text-center text-black w-20" type="number" min="1" step="0.01" placeholder="1.00"
