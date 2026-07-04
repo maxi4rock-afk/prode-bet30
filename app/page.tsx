@@ -20,7 +20,7 @@ type Toast = { id: number; message: string; type: "success" | "error"; };
 
 const WORLD_CUP_2030_LOGO = "/trophy-hero.png";
 const BET30_LOGO = "/bet30-logo.png";
-const TOTAL_PARTIDOS = 88; // 72 grupos + 16 eliminatorias
+const TOTAL_PARTIDOS = 96;
 
 const FLAG_CODES: Record<string, string> = {
   México: "mx", Sudáfrica: "za", "Corea del Sur": "kr", "República Checa": "cz",
@@ -86,6 +86,7 @@ export default function Home() {
   const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking" | "reglas" | "miperfil">("eliminatorias");
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [faseAbierta, setFaseAbierta] = useState({ octavos: true, dieciseisavos: false });
 
   function showToast(message: string, type: "success" | "error" = "success") {
     const id = Date.now();
@@ -94,8 +95,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    // Forzar actualización de caché
-    const VERSION = "2.2";
+    const VERSION = "2.3";
     const savedVersion = localStorage.getItem("app_version");
     if (savedVersion !== VERSION) {
       const savedId = localStorage.getItem("playerId");
@@ -103,14 +103,12 @@ export default function Home() {
       const savedN = localStorage.getItem("nombreVisible");
       localStorage.clear();
       localStorage.setItem("app_version", VERSION);
-      // Preservar sesión del usuario
       if (savedId) localStorage.setItem("playerId", savedId);
       if (savedU) localStorage.setItem("usuario", savedU);
       if (savedN) localStorage.setItem("nombreVisible", savedN);
       window.location.reload();
       return;
     }
-
     cargarPartidos(); cargarRanking(); cargarCampeonesElegidos(); cargarStandings();
     const savedPlayerId = localStorage.getItem("playerId");
     const savedUsuario = localStorage.getItem("usuario");
@@ -125,6 +123,8 @@ export default function Home() {
 
   const matchesGrupos = useMemo(() => matches.filter(m => !esEliminatoria(m.phase)), [matches]);
   const matchesEliminatorias = useMemo(() => matches.filter(m => esEliminatoria(m.phase)), [matches]);
+  const matchesOctavos = useMemo(() => matchesEliminatorias.filter(m => m.phase === "Octavos"), [matchesEliminatorias]);
+  const matchesDieciseisavos = useMemo(() => matchesEliminatorias.filter(m => m.phase === "Dieciseisavos"), [matchesEliminatorias]);
 
   const partidosPorGrupo = useMemo(() => {
     const grupos: Record<string, Match[]> = {};
@@ -271,7 +271,7 @@ export default function Home() {
   }
 
   const navItems = [
-    { key: "eliminatorias", label: "Eliminatorias",    desc: "Dieciseisavos de final" },
+    { key: "eliminatorias", label: "Eliminatorias",    desc: "Octavos y Dieciseisavos" },
     { key: "grupos",        label: "Fase de grupos",   desc: "Pronosticá los 72 partidos" },
     { key: "ranking",       label: "Ranking",          desc: "Tabla de posiciones" },
     { key: "reglas",        label: "Reglas",           desc: "Cómo funciona el prode" },
@@ -285,14 +285,10 @@ export default function Home() {
     const elim = esEliminatoria(match.phase);
 
     return (
-      <div style={{
-        borderRadius: 10, overflow: "hidden",
-        border: `1px solid ${bloqueado ? "#161620" : elim ? "#1e2a3a" : "#1e1e2a"}`,
-        background: bloqueado ? "rgba(8,8,12,0.5)" : elim ? "rgba(10,14,22,0.95)" : "rgba(14,14,22,0.95)",
-      }}>
+      <div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${bloqueado ? "#161620" : elim ? "#1e2a3a" : "#1e1e2a"}`, background: bloqueado ? "rgba(8,8,12,0.5)" : elim ? "rgba(10,14,22,0.95)" : "rgba(14,14,22,0.95)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 14px", background: "rgba(0,0,0,0.25)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {elim && <span style={{ fontSize: 9, fontWeight: 800, color: "#4f8cff", letterSpacing: "0.15em", textTransform: "uppercase" }}>⚡ ELIMINATORIA</span>}
+            {elim && <span style={{ fontSize: 9, fontWeight: 800, color: "#4f8cff", letterSpacing: "0.15em", textTransform: "uppercase" }}>⚡ {match.phase.toUpperCase()}</span>}
             {!elim && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#444" }}>{match.phase}</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -305,7 +301,6 @@ export default function Home() {
             {bloqueado && <span style={{ fontSize: 10, fontWeight: 700, color: "#e8357a", letterSpacing: "0.1em", textTransform: "uppercase" }}>Cerrado</span>}
           </div>
         </div>
-
         <div className="match-card-grid">
           <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
             {FLAG_CODES[match.home_team] && <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.home_team]}.png`} alt={match.home_team} style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />}
@@ -314,7 +309,6 @@ export default function Home() {
               <div style={{ fontSize: 14, fontWeight: 800, color: "#ddd" }}>{match.home_team}</div>
             </div>
           </div>
-
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "12px 8px", gap: 5, borderLeft: "1px solid rgba(255,255,255,0.04)", borderRight: "1px solid rgba(255,255,255,0.04)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <input disabled={bloqueado} type="number" min="0" placeholder="—" value={predictions[match.id]?.home ?? ""}
@@ -332,7 +326,6 @@ export default function Home() {
               </button>
             )}
           </div>
-
           <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexDirection: "row-reverse" }}>
             {FLAG_CODES[match.away_team] && <img src={`https://flagcdn.com/w40/${FLAG_CODES[match.away_team]}.png`} alt={match.away_team} style={{ width: 32, height: 23, borderRadius: 3, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />}
             <div style={{ textAlign: "right" }}>
@@ -341,7 +334,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
         {hasOdds && (
           <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
             {[{ label: "1 Local", val: match.odd_home }, { label: "X Empate", val: match.odd_draw }, { label: "2 Visitante", val: match.odd_away }].map(({ label, val }, i) => {
@@ -353,6 +345,27 @@ export default function Home() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function FaseAccordion({ titulo, partidos, abierto, onToggle, jugados }: { titulo: string; partidos: Match[]; abierto: boolean; onToggle: () => void; jugados?: number; }) {
+    return (
+      <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${abierto ? "rgba(79,140,255,0.3)" : "rgba(79,140,255,0.1)"}` }}>
+        <button onClick={onToggle} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", cursor: "pointer", border: "none", background: abierto ? "linear-gradient(90deg, rgba(79,140,255,0.12), transparent)" : "rgba(255,255,255,0.015)", borderLeft: `3px solid ${abierto ? "#4f8cff" : "rgba(79,140,255,0.2)"}` }}>
+          <div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 17, color: abierto ? "#4f8cff" : "#555" }}>{abierto ? "▼" : "▶"} {titulo}</div>
+            <div style={{ fontSize: 11, color: "#444", marginTop: 2, fontWeight: 600 }}>
+              {partidos.length} partidos{jugados !== undefined ? ` · ${jugados} jugados` : ""}
+            </div>
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 800, color: abierto ? "#4f8cff" : "#555", letterSpacing: "0.1em", textTransform: "uppercase" }}>{abierto ? "Ocultar" : "Ver partidos"}</span>
+        </button>
+        {abierto && (
+          <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6, background: "rgba(0,0,0,0.2)" }}>
+            {partidos.map((match) => <MatchCard key={match.id} match={match} />)}
           </div>
         )}
       </div>
@@ -430,7 +443,6 @@ export default function Home() {
         )}
       </nav>
 
-      {/* Hero */}
       <div style={{ position: "relative", zIndex: 1 }}>
         <div className="relative overflow-hidden bg-[#06060a]">
           <div className="absolute top-0 left-0 right-0 h-[3px] z-30" style={{ background: "linear-gradient(90deg, #e8357a, #ff9500, #ffcc00, #2255ee)" }} />
@@ -510,7 +522,6 @@ export default function Home() {
 
       <div id="contenido-principal" style={{ position: "relative", zIndex: 1 }} className="max-w-screen-xl mx-auto px-4 md:px-6 py-6 space-y-5">
 
-        {/* Tab bar desktop */}
         <div className="hidden md:block" style={{ borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)", background: "#0a0a10" }}>
           <div className="grid grid-cols-5">
             {navItems.map(({ key, label }) => {
@@ -521,7 +532,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tab bar mobile */}
         <div className="md:hidden" style={{ borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)", background: "#0a0a10" }}>
           <div className="grid grid-cols-3">
             {navItems.slice(0,3).map(({ key, label }) => {
@@ -532,7 +542,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Próximo partido */}
         {(tabActiva === "grupos" || tabActiva === "eliminatorias") && proximoPartido && (
           <div style={{ borderRadius: 14, border: "1px solid rgba(255,119,34,0.3)", background: "linear-gradient(135deg,#0f0f16,#0d0d14)", padding: "20px 24px" }}>
             <div className="grid md:grid-cols-[1fr_200px] gap-4 items-center">
@@ -553,7 +562,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Ingresar / Mi perfil */}
         {(tabActiva === "grupos" || tabActiva === "miperfil") && (
           <div style={{ borderRadius: 14, border: "1px solid rgba(124,58,237,0.4)", background: "#0d0d14", padding: "22px 24px" }}>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: "0.05em", marginBottom: 6 }}>{tabActiva === "miperfil" ? "Mi perfil" : "Ingresar al Prode"}</h2>
@@ -580,7 +588,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Campeón */}
         {(tabActiva === "grupos" || tabActiva === "miperfil") && (
           <div className="grid lg:grid-cols-[1fr_300px] gap-4">
             <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.2)", background:"#0d0d14", padding:"22px 24px" }}>
@@ -614,7 +621,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB GRUPOS */}
         {tabActiva === "grupos" && (
           <>
             <div className="grid md:grid-cols-2 gap-4">
@@ -652,7 +658,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
             <div style={{ borderRadius:14, border:"1px solid #1a1a24", background:"rgba(10,10,16,0.85)", padding:"20px 22px", backdropFilter:"blur(8px)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18, flexWrap:"wrap", gap:10 }}>
                 <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:24 }}>Fixture y pronósticos</h2>
@@ -721,27 +726,41 @@ export default function Home() {
           </>
         )}
 
-        {/* TAB ELIMINATORIAS */}
         {tabActiva === "eliminatorias" && (
           <div style={{ borderRadius:14, border:"1px solid rgba(34,85,238,0.35)", background:"#0d0d14", padding:"24px" }}>
             <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.4em", textTransform:"uppercase", color:"#4f8cff", marginBottom:6 }}>⚡ Eliminatorias</div>
-            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:4 }}>Dieciseisavos de Final</h2>
+            <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, marginBottom:4 }}>Cruces eliminatorios</h2>
             <div style={{ display:"flex", gap:16, marginBottom:20, fontSize:12, color:"#555", flexWrap:"wrap" }}>
               <span><span style={{ color:"#4f8cff", fontWeight:800 }}>10 pts</span> resultado exacto</span>
               <span><span style={{ color:"#4f8cff", fontWeight:800 }}>6 pts</span> ganador + dif. exacta</span>
               <span><span style={{ color:"#4f8cff", fontWeight:800 }}>3 pts</span> solo ganador</span>
             </div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:10 }}>
-              <span style={{ fontSize:13, color:"#555" }}>{matchesEliminatorias.length} partidos</span>
+              <span style={{ fontSize:13, color:"#555" }}>{matchesEliminatorias.length} partidos en total</span>
               <button onClick={guardarTodosLosPronosticos} style={{ padding:"10px 20px", borderRadius:8, background:"linear-gradient(90deg,#2255ee,#4f8cff)", color:"#fff", fontWeight:900, fontSize:13, border:"none", cursor:"pointer" }}>Guardar todos</button>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {matchesEliminatorias.map((match) => <MatchCard key={match.id} match={match} />)}
+              {matchesOctavos.length > 0 && (
+                <FaseAccordion
+                  titulo="Octavos de Final"
+                  partidos={matchesOctavos}
+                  abierto={faseAbierta.octavos}
+                  onToggle={() => setFaseAbierta(prev => ({ ...prev, octavos: !prev.octavos }))}
+                />
+              )}
+              {matchesDieciseisavos.length > 0 && (
+                <FaseAccordion
+                  titulo="Dieciseisavos de Final"
+                  partidos={matchesDieciseisavos}
+                  abierto={faseAbierta.dieciseisavos}
+                  onToggle={() => setFaseAbierta(prev => ({ ...prev, dieciseisavos: !prev.dieciseisavos }))}
+                  jugados={matchesDieciseisavos.filter(m => m.real_home_goals !== null).length}
+                />
+              )}
             </div>
           </div>
         )}
 
-        {/* TAB RANKING */}
         {tabActiva === "ranking" && (
           <div style={{ borderRadius:14, border:"1px solid rgba(255,204,0,0.35)", background:"#0d0d14", padding:"24px" }}>
             <h2 style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:30, color:"#ffcc00", marginBottom:20 }}>Ranking completo</h2>
@@ -760,7 +779,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB REGLAS */}
         {tabActiva === "reglas" && (
           <div style={{ borderRadius:14, border:"1px solid rgba(34,197,94,0.3)", background:"#0d0d14", padding:"28px" }}>
             <div style={{ fontSize:10, fontWeight:800, letterSpacing:"0.4em", textTransform:"uppercase", color:"#22c55e", marginBottom:10 }}>Información</div>
