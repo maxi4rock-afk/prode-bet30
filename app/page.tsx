@@ -86,7 +86,7 @@ export default function Home() {
   const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking" | "reglas" | "miperfil">("eliminatorias");
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [faseAbierta, setFaseAbierta] = useState({ cuartos: true, octavos: false, dieciseisavos: false });
+  const [faseAbierta, setFaseAbierta] = useState({ semifinales: true, cuartos: false, octavos: false, dieciseisavos: false });
 
   function showToast(message: string, type: "success" | "error" = "success") {
     const id = Date.now();
@@ -95,7 +95,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const VERSION = "2.4";
+    const VERSION = "2.5";
     const savedVersion = localStorage.getItem("app_version");
     if (savedVersion !== VERSION) {
       const savedId = localStorage.getItem("playerId");
@@ -740,6 +740,14 @@ export default function Home() {
               <button onClick={guardarTodosLosPronosticos} style={{ padding:"10px 20px", borderRadius:8, background:"linear-gradient(90deg,#2255ee,#4f8cff)", color:"#fff", fontWeight:900, fontSize:13, border:"none", cursor:"pointer" }}>Guardar todos</button>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {matchesEliminatorias.filter(m => m.phase === "Semifinales").length > 0 && (
+                <FaseAccordion
+                  titulo="Semifinales"
+                  partidos={matchesEliminatorias.filter(m => m.phase === "Semifinales")}
+                  abierto={faseAbierta.semifinales}
+                  onToggle={() => setFaseAbierta(prev => ({ ...prev, semifinales: !prev.semifinales }))}
+                />
+              )}
               {matchesEliminatorias.filter(m => m.phase === "Cuartos").length > 0 && (
                 <FaseAccordion
                   titulo="Cuartos de Final"
