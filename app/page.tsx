@@ -86,7 +86,7 @@ export default function Home() {
   const [tabActiva, setTabActiva] = useState<"grupos" | "eliminatorias" | "ranking" | "reglas" | "miperfil">("eliminatorias");
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [faseAbierta, setFaseAbierta] = useState({ semifinales: true, cuartos: false, octavos: false, dieciseisavos: false });
+  const [faseAbierta, setFaseAbierta] = useState({ final: true, tercerPuesto: true, semifinales: false, cuartos: false, octavos: false, dieciseisavos: false });
 
   function showToast(message: string, type: "success" | "error" = "success") {
     const id = Date.now();
@@ -95,7 +95,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const VERSION = "2.5";
+    const VERSION = "2.6";
     const savedVersion = localStorage.getItem("app_version");
     if (savedVersion !== VERSION) {
       const savedId = localStorage.getItem("playerId");
@@ -740,6 +740,22 @@ export default function Home() {
               <button onClick={guardarTodosLosPronosticos} style={{ padding:"10px 20px", borderRadius:8, background:"linear-gradient(90deg,#2255ee,#4f8cff)", color:"#fff", fontWeight:900, fontSize:13, border:"none", cursor:"pointer" }}>Guardar todos</button>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {matchesEliminatorias.filter(m => m.phase === "Final").length > 0 && (
+                <FaseAccordion
+                  titulo="🏆 Final"
+                  partidos={matchesEliminatorias.filter(m => m.phase === "Final")}
+                  abierto={faseAbierta.final}
+                  onToggle={() => setFaseAbierta(prev => ({ ...prev, final: !prev.final }))}
+                />
+              )}
+              {matchesEliminatorias.filter(m => m.phase === "Tercer Puesto").length > 0 && (
+                <FaseAccordion
+                  titulo="🥉 Tercer Puesto"
+                  partidos={matchesEliminatorias.filter(m => m.phase === "Tercer Puesto")}
+                  abierto={faseAbierta.tercerPuesto}
+                  onToggle={() => setFaseAbierta(prev => ({ ...prev, tercerPuesto: !prev.tercerPuesto }))}
+                />
+              )}
               {matchesEliminatorias.filter(m => m.phase === "Semifinales").length > 0 && (
                 <FaseAccordion
                   titulo="Semifinales"
